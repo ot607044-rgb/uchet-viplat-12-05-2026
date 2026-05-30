@@ -1,0 +1,57 @@
+{
+  "name": "payroll-app",
+  "version": "1.0.1",
+  "description": "Учет выплат",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"vite --port 5173\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "vite build && electron-builder",
+    "electron": "electron ."
+  },
+  "build": {
+    "appId": "com.company.payroll",
+    "productName": "Учет выплат",
+    "files": [
+      "dist/renderer/**/*",
+      "electron/**/*",
+      "node_modules/pdf-parse/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "release"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "ot607044-rgb",
+      "repo": "uchet-viplat-12-05-2026"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "category": "public.app-category.finance"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "dependencies": {
+    "date-fns": "^3.3.1",
+    "electron-updater": "^6.8.3",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
+    "lucide-react": "^0.344.0",
+    "pdf-parse": "^1.1.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.10.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^29.1.0",
+    "electron-builder": "^24.13.2",
+    "vite": "^5.1.4",
+    "wait-on": "^7.2.0"
+  }
+}
