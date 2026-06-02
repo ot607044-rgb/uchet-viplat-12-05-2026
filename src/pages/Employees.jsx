@@ -618,7 +618,7 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <span className={`badge ${liveEmp.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
-              {liveEmp.status === 'active' ? 'Работает' : 'Уволен'}
+              {liveEmp.status === 'active' ? 'Работает' : `Уволен ${formatDate(liveEmp.dismissDate)}`}
             </span>
             <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
             <button className="btn btn-danger btn-sm" onClick={onDelete} style={{ padding: '4px 10px', fontSize: 12 }}>
@@ -1052,7 +1052,7 @@ export default function Employees({ onNavigate }) {
                   <td style={{ color: 'var(--text-secondary)' }}>{formatDate(e.hireDate)}</td>
                   <td>
                     <span className={`badge ${e.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
-                      {e.status === 'active' ? 'Работает' : 'Уволен'}
+                      {e.status === 'active' ? 'Работает' : `Уволен ${formatDate(e.dismissDate)}`}
                     </span>
                   </td>
                   <td>
