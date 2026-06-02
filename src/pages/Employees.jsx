@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { formatMoney, formatDate, calcWorkDuration, getVacationBalance, getVacationPolicyLabel, getVacationAccrualRate } from '../utils/helpers'
 import { ABSENCE_TYPES } from './Schedule'
 import { CustomSelect, HYBRID_DAYS, DAY_OPTS, DEFAULT_HYBRID, DEFAULT_PAYMENT_SETTINGS, BASE_COOPERATION_FORMATS, BASE_WORK_SCHEDULES, BASE_EMPLOYMENT_TYPES } from './AddEmployee'
+import { getFormatColors } from './PayrollTax'
 
 const EMPTY_ABS_FORM = { type: 'vacation', dateFrom: '', dateTo: '', comment: '' }
 
@@ -1039,6 +1040,10 @@ export default function Employees({ onNavigate }) {
                 <tr key={e.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedEmployee(e)}>
                   <td>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{e.fullName}</div>
+                    {e.cooperationFormat && (() => {
+                      const c = getFormatColors(e.cooperationFormat)
+                      return <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 10, background: c.bg, color: c.text, fontWeight: 700, display: 'inline-block', marginTop: 3 }}>{e.cooperationFormat}</span>
+                    })()}
                   </td>
                   <td style={{ color: 'var(--text-secondary)' }}>{e.department || '—'}</td>
                   <td style={{ color: 'var(--text-secondary)' }}>{e.position || '—'}</td>
