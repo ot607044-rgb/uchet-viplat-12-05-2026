@@ -191,7 +191,6 @@ export default function Payroll() {
 
   function copyPrevMonth() {
     dispatch({ type: 'COPY_PREVIOUS_MONTH', payload: { month, year } })
-    addMissingEmployees()
   }
 
   function prevMonth() {
