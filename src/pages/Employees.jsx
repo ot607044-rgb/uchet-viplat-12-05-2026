@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { formatMoney, formatDate, calcWorkDuration, getVacationBalance, getVacationPolicyLabel, getVacationAccrualRate } from '../utils/helpers'
 import { ABSENCE_TYPES } from './Schedule'
 import { CustomSelect, HYBRID_DAYS, DAY_OPTS, DEFAULT_HYBRID, DEFAULT_PAYMENT_SETTINGS, BASE_COOPERATION_FORMATS, BASE_WORK_SCHEDULES, BASE_EMPLOYMENT_TYPES } from './AddEmployee'
+import { getFormatColors } from './PayrollTax'
 
 const EMPTY_ABS_FORM = { type: 'vacation', dateFrom: '', dateTo: '', comment: '' }
 
@@ -617,7 +618,7 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <span className={`badge ${liveEmp.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
-              {liveEmp.status === 'active' ? 'Работает' : 'Уволен'}
+              {liveEmp.status === 'active' ? 'Работает' : `Уволен ${formatDate(liveEmp.dismissDate)}`}
             </span>
             <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
             <button className="btn btn-danger btn-sm" onClick={onDelete} style={{ padding: '4px 10px', fontSize: 12 }}>
@@ -1039,6 +1040,10 @@ export default function Employees({ onNavigate }) {
                 <tr key={e.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedEmployee(e)}>
                   <td>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{e.fullName}</div>
+                    {e.cooperationFormat && (() => {
+                      const c = getFormatColors(e.cooperationFormat)
+                      return <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 10, background: c.bg, color: c.text, fontWeight: 700, display: 'inline-block', marginTop: 3 }}>{e.cooperationFormat}</span>
+                    })()}
                   </td>
                   <td style={{ color: 'var(--text-secondary)' }}>{e.department || '—'}</td>
                   <td style={{ color: 'var(--text-secondary)' }}>{e.position || '—'}</td>
@@ -1047,7 +1052,7 @@ export default function Employees({ onNavigate }) {
                   <td style={{ color: 'var(--text-secondary)' }}>{formatDate(e.hireDate)}</td>
                   <td>
                     <span className={`badge ${e.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
-                      {e.status === 'active' ? 'Работает' : 'Уволен'}
+                      {e.status === 'active' ? 'Работает' : `Уволен ${formatDate(e.dismissDate)}`}
                     </span>
                   </td>
                   <td>

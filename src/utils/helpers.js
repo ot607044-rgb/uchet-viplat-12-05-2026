@@ -155,14 +155,12 @@ export function calcPayroll(p) {
     ? (p.totalAdvance || 0)
     : (p.officialAdvance || 0) + (p.unofficialAdvance || 0)
 
-  // Итого выдано = отпускные + аванс + оф.часть ЗП + деньги в счёт з/п + штраф + прочие удержания
+  // Итого выдано = отпускные + аванс + оф.часть ЗП + деньги в счёт з/п
   const totalDeducted = (p.vacationPay || 0)
     + advanceSum
     + (p.officialSalaryPart || 0)
     + (p.salaryOnAccount || 0)
-    + (p.fine || 0)
-    + (p.otherDeductions || 0)
-  const remaining = totalEarned - totalDeducted
+  const remaining = totalEarned - totalDeducted - (p.fine || 0) - (p.otherDeductions || 0)
   return { totalEarned, totalDeducted, remaining }
 }
 
