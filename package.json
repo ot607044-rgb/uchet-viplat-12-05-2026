@@ -27,7 +27,7 @@
     },
     "win": {
       "target": "portable",
-      "sign": false
+      "signingHashAlgorithms": null
     },
     "mac": {
       "category": "public.app-category.finance"
