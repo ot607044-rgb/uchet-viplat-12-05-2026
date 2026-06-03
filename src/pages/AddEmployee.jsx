@@ -70,6 +70,11 @@ export const BASE_COOPERATION_FORMATS = ['ТК', 'ГПХ', 'Самозаняты
 export const BASE_WORK_SCHEDULES = ['8 часов', '4 часа', '2 часа', '1 раз в неделю', 'Индивидуальный график', 'Прочее']
 export const BASE_EMPLOYMENT_TYPES = ['Полная занятость', 'Частичная занятость', 'Проектная занятость', 'Временная занятость', 'Стажировка', 'Прочее']
 
+export const PRESET_BANKS = [
+  'Сбербанк', 'ВТБ', 'Альфа-Банк', 'Тинькофф', 'Газпромбанк',
+  'Россельхозбанк', 'Совкомбанк', 'МТС Банк', 'Открытие', 'Райффайзен',
+]
+
 export const DEFAULT_PAYMENT_SETTINGS = {
   useIndividualPaymentSettings: false,
   hasAdvance: true,
@@ -94,7 +99,8 @@ const EMPTY_FORM = {
   workFormat: '',
   hybridDays: DEFAULT_HYBRID,
   employmentType: '',
-  paymentSettings: { ...DEFAULT_PAYMENT_SETTINGS }
+  paymentSettings: { ...DEFAULT_PAYMENT_SETTINGS },
+  preferredBank: ''
 }
 
 export default function AddEmployee({ editEmployee, onNavigate }) {
@@ -429,6 +435,30 @@ export default function AddEmployee({ editEmployee, onNavigate }) {
               onChange={e => setPS('paymentComment', e.target.value)}
             />
           </Field>
+
+          <div style={{ marginTop: 4, padding: 14, background: '#f8f9fb', borderRadius: 10, border: '1px solid var(--border)' }}>
+            <div className="form-label" style={{ marginBottom: 10 }}>Предпочтительный банк</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+              {PRESET_BANKS.map(b => (
+                <button key={b} type="button" onClick={() => set('preferredBank', form.preferredBank === b ? '' : b)}
+                  style={{ padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: `2px solid ${form.preferredBank === b ? '#3b82f6' : '#e5e7eb'}`,
+                    background: form.preferredBank === b ? '#eff6ff' : 'white',
+                    color: form.preferredBank === b ? '#1d4ed8' : 'var(--text-secondary)', transition: 'all 0.12s' }}>
+                  {b}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input type="text" className="input input-sm" placeholder="Или введите свой банк..."
+                value={form.preferredBank} onChange={e => set('preferredBank', e.target.value)}
+                style={{ flex: 1 }} />
+              {form.preferredBank && (
+                <button type="button" onClick={() => set('preferredBank', '')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 14 }}>✕</button>
+              )}
+            </div>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
