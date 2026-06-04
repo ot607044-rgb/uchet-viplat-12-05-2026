@@ -215,7 +215,7 @@ function EmployeeEditForm({ empId, onDone }) {
   const [form, setForm] = useState(() => ({
     fullName: '', position: '', hireDate: '', status: 'active', department: '',
     manager: '', comment: '', cooperationFormat: '', workSchedule: '',
-    workFormat: '', employmentType: '',
+    shiftSchedule: null, workFormat: '', employmentType: '',
     ...emp,
     salary: emp?.salary ?? '',
     hybridDays: { ...DEFAULT_HYBRID, ...(emp?.hybridDays || {}) },
@@ -243,7 +243,10 @@ function EmployeeEditForm({ empId, onDone }) {
     dispatch({ type: 'UPDATE_EMPLOYEE', payload: {
       ...emp, ...form,
       salary: parseFloat(form.salary) || 0,
-      hybridDays: form.workFormat === 'гибрид' ? form.hybridDays : DEFAULT_HYBRID
+      hybridDays: form.workFormat === 'гибрид' ? form.hybridDays : DEFAULT_HYBRID,
+      shiftSchedule: form.workSchedule === 'Индивидуальный график'
+        ? (form.shiftSchedule || { workDays: 2, restDays: 2 })
+        : null
     }})
     if (form.cooperationFormat && !BASE_COOPERATION_FORMATS.includes(form.cooperationFormat)) addToList('cooperationFormats', form.cooperationFormat)
     if (form.workSchedule && !BASE_WORK_SCHEDULES.includes(form.workSchedule)) addToList('workSchedules', form.workSchedule)
@@ -329,6 +332,29 @@ function EmployeeEditForm({ empId, onDone }) {
           </select>
         </div>
       </div>
+      {form.workSchedule === 'Индивидуальный график' && (
+        <div style={{ padding: 12, background: '#f8f9fb', borderRadius: 8, border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>ПАРАМЕТРЫ СМЕННОГО ГРАФИКА</div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 3 }}>Рабочих дней</div>
+              <input type="number" className="input" min="1" max="30" style={{ width: 76 }}
+                value={form.shiftSchedule?.workDays ?? 2}
+                onChange={e => set('shiftSchedule', { ...(form.shiftSchedule || { workDays: 2, restDays: 2 }), workDays: Math.max(1, parseInt(e.target.value) || 1) })} />
+            </div>
+            <div style={{ fontSize: 18, color: 'var(--text-muted)', marginTop: 14 }}>/</div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 3 }}>Выходных дней</div>
+              <input type="number" className="input" min="1" max="30" style={{ width: 76 }}
+                value={form.shiftSchedule?.restDays ?? 2}
+                onChange={e => set('shiftSchedule', { ...(form.shiftSchedule || { workDays: 2, restDays: 2 }), restDays: Math.max(1, parseInt(e.target.value) || 1) })} />
+            </div>
+            <div style={{ marginTop: 14, fontSize: 12, color: 'var(--text-secondary)' }}>
+              — цикл {(form.shiftSchedule?.workDays ?? 2) + (form.shiftSchedule?.restDays ?? 2)} дн.
+            </div>
+          </div>
+        </div>
+      )}
       {form.workFormat === 'гибрид' && (
         <div style={{ padding: 12, background: '#f8f9fb', borderRadius: 8, border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>ДНИ ГИБРИДНОГО ГРАФИКА</div>
@@ -581,6 +607,7 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
     cooperationFormat: emp.cooperationFormat || '',
     employmentType: emp.employmentType || '',
     workSchedule: emp.workSchedule || '',
+    shiftSchedule: emp.shiftSchedule || null,
     workFormat: emp.workFormat || '',
     hybridDays: { ...DEFAULT_HYBRID, ...(emp.hybridDays || {}) },
     paymentSettings: { ...DEFAULT_PAYMENT_SETTINGS, ...(emp.paymentSettings || {}) },
@@ -596,7 +623,13 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
 
   function save() {
     if (!f.fullName.trim()) return
-    dispatch({ type: 'UPDATE_EMPLOYEE', payload: { ...liveEmp, ...f, salary: parseFloat(f.salary) || 0 } })
+    dispatch({ type: 'UPDATE_EMPLOYEE', payload: {
+      ...liveEmp, ...f,
+      salary: parseFloat(f.salary) || 0,
+      shiftSchedule: f.workSchedule === 'Индивидуальный график'
+        ? (f.shiftSchedule || { workDays: 2, restDays: 2 })
+        : null
+    } })
     setDirty(false)
   }
   function reset() { setF(initForm(liveEmp)); setDirty(false) }
@@ -733,6 +766,29 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
                     </select>
                   </div>
                 </div>
+                {f.workSchedule === 'Индивидуальный график' && (
+                  <div style={{ marginTop: 10, padding: 12, background: 'white', borderRadius: 8, border: '1px solid #bae6fd' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>ПАРАМЕТРЫ СМЕННОГО ГРАФИКА</div>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 3 }}>Рабочих дней</div>
+                        <input type="number" className="input" min="1" max="30" style={{ width: 76 }}
+                          value={f.shiftSchedule?.workDays ?? 2}
+                          onChange={e => upd('shiftSchedule', { ...(f.shiftSchedule || { workDays: 2, restDays: 2 }), workDays: Math.max(1, parseInt(e.target.value) || 1) })} />
+                      </div>
+                      <div style={{ fontSize: 18, color: 'var(--text-muted)', marginTop: 14 }}>/</div>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 3 }}>Выходных дней</div>
+                        <input type="number" className="input" min="1" max="30" style={{ width: 76 }}
+                          value={f.shiftSchedule?.restDays ?? 2}
+                          onChange={e => upd('shiftSchedule', { ...(f.shiftSchedule || { workDays: 2, restDays: 2 }), restDays: Math.max(1, parseInt(e.target.value) || 1) })} />
+                      </div>
+                      <div style={{ marginTop: 14, fontSize: 12, color: 'var(--text-secondary)' }}>
+                        — цикл {(f.shiftSchedule?.workDays ?? 2) + (f.shiftSchedule?.restDays ?? 2)} дн.
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {f.workFormat === 'гибрид' && (
                   <div style={{ marginTop: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>ДНИ ГИБРИДНОГО ГРАФИКА</div>

@@ -96,6 +96,7 @@ const EMPTY_FORM = {
   comment: '',
   cooperationFormat: '',
   workSchedule: '',
+  shiftSchedule: null,
   workFormat: '',
   hybridDays: DEFAULT_HYBRID,
   employmentType: '',
@@ -178,7 +179,10 @@ export default function AddEmployee({ editEmployee, onNavigate }) {
       id: editEmployee?.id || generateId(),
       positionHistory: editEmployee?.positionHistory || [],
       salaryHistory: editEmployee?.salaryHistory || [],
-      hybridDays: form.workFormat === 'гибрид' ? form.hybridDays : DEFAULT_HYBRID
+      hybridDays: form.workFormat === 'гибрид' ? form.hybridDays : DEFAULT_HYBRID,
+      shiftSchedule: form.workSchedule === 'Индивидуальный график'
+        ? (form.shiftSchedule || { workDays: 2, restDays: 2 })
+        : null
     }
 
     dispatch({ type: isEdit ? 'UPDATE_EMPLOYEE' : 'ADD_EMPLOYEE', payload })
@@ -329,6 +333,33 @@ export default function AddEmployee({ editEmployee, onNavigate }) {
               </select>
             </Field>
           </div>
+
+          {/* Сменный график */}
+          {form.workSchedule === 'Индивидуальный график' && (
+            <div style={{ marginTop: 4, padding: 16, background: '#f8f9fb', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Параметры сменного графика
+              </div>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Рабочих дней</div>
+                  <input type="number" className="input" min="1" max="30" style={{ width: 80 }}
+                    value={form.shiftSchedule?.workDays ?? 2}
+                    onChange={e => set('shiftSchedule', { ...(form.shiftSchedule || { workDays: 2, restDays: 2 }), workDays: Math.max(1, parseInt(e.target.value) || 1) })} />
+                </div>
+                <div style={{ fontSize: 20, color: 'var(--text-muted)', marginTop: 14 }}>/</div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Выходных дней</div>
+                  <input type="number" className="input" min="1" max="30" style={{ width: 80 }}
+                    value={form.shiftSchedule?.restDays ?? 2}
+                    onChange={e => set('shiftSchedule', { ...(form.shiftSchedule || { workDays: 2, restDays: 2 }), restDays: Math.max(1, parseInt(e.target.value) || 1) })} />
+                </div>
+                <div style={{ marginTop: 14, fontSize: 13, color: 'var(--text-secondary)' }}>
+                  — цикл {(form.shiftSchedule?.workDays ?? 2) + (form.shiftSchedule?.restDays ?? 2)} дн.
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Дни гибридного графика */}
           {form.workFormat === 'гибрид' && (

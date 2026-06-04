@@ -251,6 +251,22 @@ export function getDayType(dateStr) {
   return 'workday'
 }
 
+// Возвращает 'workday' или 'restday' для сотрудника с индивидуальным сменным графиком.
+// Цикл отсчитывается от даты найма (hireDate).
+export function getShiftDayType(dateStr, employee) {
+  const schedule = employee?.shiftSchedule
+  if (!schedule || employee?.workSchedule !== 'Индивидуальный график') return getDayType(dateStr)
+  const { workDays, restDays } = schedule
+  const total = (workDays || 2) + (restDays || 2)
+  if (total <= 0) return getDayType(dateStr)
+  if (!employee.hireDate) return getDayType(dateStr)
+  const start = new Date(employee.hireDate + 'T00:00:00')
+  const current = new Date(dateStr + 'T00:00:00')
+  const diffDays = Math.floor((current - start) / 86400000)
+  const posInCycle = ((diffDays % total) + total) % total
+  return posInCycle < (workDays || 2) ? 'workday' : 'restday'
+}
+
 export const DAY_TYPE_STYLE = {
   workday: { bg: '#ffffff', text: '#374151' },
   weekend: { bg: '#f3f4f6', text: '#9ca3af' },
