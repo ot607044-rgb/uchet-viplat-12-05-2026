@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { Plus, ChevronLeft, ChevronRight, Trash2, Edit2, X, CalendarDays } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { monthName, monthShort, getCurrentPeriod, formatDate, calcEntitledVacationDays, calcAccruedVacationDays, isVacationTracked, getVacationAccrualRate } from '../utils/helpers'
+import { monthName, monthShort, getCurrentPeriod, formatDate, calcEntitledVacationDays, calcAccruedVacationDays, isVacationTracked, getVacationAccrualRate, getShiftDayType } from '../utils/helpers'
 import { EmployeeModal } from './Employees'
 
 // Российские официальные праздники (включая переносы) по годам
@@ -38,6 +38,18 @@ const RU_HOLIDAYS = {
 }
 function ruHoliday(dateStr, year) {
   return !!(RU_HOLIDAYS[year]?.has(dateStr))
+}
+
+// Фон ячейки календаря с учётом сменного графика сотрудника
+function getEmpCellBg(emp, dayStr, absenceInfo, isToday, isHoliday, isWeekend) {
+  if (absenceInfo) return absenceInfo.bg
+  if (isToday) return '#eff6ff'
+  if (isHoliday) return '#ffe4e4'
+  if (emp.workSchedule === 'Индивидуальный график' && emp.shiftSchedule) {
+    const type = getShiftDayType(dayStr, emp)
+    return type === 'restday' ? '#eef0f3' : 'transparent'
+  }
+  return isWeekend ? '#fff8f8' : 'transparent'
 }
 
 export const ABSENCE_TYPES = {
@@ -236,6 +248,12 @@ export default function Schedule() {
             )}
           </div>
         ))}
+        {activeEmployees.some(e => e.workSchedule === 'Индивидуальный график' && e.shiftSchedule) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: '#eef0f3', border: '1px solid #d1d5db', display: 'inline-block' }} />
+            <span style={{ color: 'var(--text-secondary)' }}>Выходной (смена)</span>
+          </div>
+        )}
       </div>
 
       {view === 'month' ? (
@@ -321,10 +339,12 @@ export default function Schedule() {
                             const wk = isWeekend(d)
                             const td = isToday(d)
                             const hol = isHoliday(d)
+                            const mm = String(month).padStart(2, '0')
+                            const dayStr = `${year}-${mm}-${String(d).padStart(2, '0')}`
                             return (
                               <td key={d} style={{
                                 width: 26, textAlign: 'center', padding: '3px 1px',
-                                background: ti ? ti.bg : td ? '#eff6ff' : hol ? '#ffe4e4' : wk ? '#fff8f8' : 'transparent',
+                                background: getEmpCellBg(emp, dayStr, ti, td, hol, wk),
                                 borderRight: '1px solid #f0f0f0',
                                 cursor: ti ? 'pointer' : 'default'
                               }}
