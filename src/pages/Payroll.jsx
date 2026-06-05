@@ -159,6 +159,15 @@ export default function Payroll() {
     dispatch({ type: 'UPDATE_PAYROLL_FIELD', payload: { id, field, value } })
   }
 
+  function markAll(field, value) {
+    const rows = field === 'advanceStatus'
+      ? filteredRows.filter(p => p.ps?.paymentScheme !== 'single_payment')
+      : field === 'vacationPayStatus'
+        ? filteredRows.filter(p => (p.vacationPay || 0) > 0)
+        : filteredRows
+    rows.forEach(p => dispatch({ type: 'UPDATE_PAYROLL_FIELD', payload: { id: p.id, field, value } }))
+  }
+
   function addMissingEmployees() {
     const existingIds = new Set(payrollRows.map(p => p.employeeId))
     const missing = activeEmployees.filter(e => !existingIds.has(e.id))
@@ -370,9 +379,27 @@ export default function Payroll() {
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 110, background: '#f0fdf4', fontWeight: 800 }}>Итого начислено</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 100, background: '#fff7ed', fontWeight: 800, color: '#c2410c' }}>Итого выдано</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 110, background: '#eff6ff', fontWeight: 800 }}>Остаток</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 120 }}>Статус аванса</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 130, color: '#059669' }}>Статус отпускных</th>
-                  <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 120 }}>Статус з/п</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 120 }}>
+                    <div>Статус аванса</div>
+                    <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+                      <button className="btn btn-secondary btn-sm" style={{ fontSize: 10, padding: '1px 5px' }} onClick={() => markAll('advanceStatus', 'paid')}>Все ✓</button>
+                      <button className="btn btn-secondary btn-sm" style={{ fontSize: 10, padding: '1px 5px' }} onClick={() => markAll('advanceStatus', 'unpaid')}>Сброс</button>
+                    </div>
+                  </th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 130, color: '#059669' }}>
+                    <div>Статус отпускных</div>
+                    <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+                      <button className="btn btn-secondary btn-sm" style={{ fontSize: 10, padding: '1px 5px' }} onClick={() => markAll('vacationPayStatus', 'paid')}>Все ✓</button>
+                      <button className="btn btn-secondary btn-sm" style={{ fontSize: 10, padding: '1px 5px' }} onClick={() => markAll('vacationPayStatus', 'unpaid')}>Сброс</button>
+                    </div>
+                  </th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 120 }}>
+                    <div>Статус з/п</div>
+                    <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
+                      <button className="btn btn-secondary btn-sm" style={{ fontSize: 10, padding: '1px 5px' }} onClick={() => markAll('salaryStatus', 'paid')}>Все ✓</button>
+                      <button className="btn btn-secondary btn-sm" style={{ fontSize: 10, padding: '1px 5px' }} onClick={() => markAll('salaryStatus', 'unpaid')}>Сброс</button>
+                    </div>
+                  </th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 120 }}>Комментарий</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 44 }} />
                 </tr>
