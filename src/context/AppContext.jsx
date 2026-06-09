@@ -83,7 +83,15 @@ function reducer(state, action) {
 
     // ── Employees ────────────────────────────────────────────────────────────
     case 'ADD_EMPLOYEE': {
-      const emp = { ...action.payload, id: generateId(), positionHistory: [], salaryHistory: [] }
+      const emp = {
+        ...action.payload,
+        id: generateId(),
+        positionHistory: [],
+        salaryHistory: [],
+        employmentHistory: action.payload.hireDate
+          ? [{ type: 'hired', date: action.payload.hireDate }]
+          : []
+      }
       return { ...state, employees: [...state.employees, emp] }
     }
     case 'UPDATE_EMPLOYEE': {
@@ -114,14 +122,29 @@ function reducer(state, action) {
     case 'DISMISS_EMPLOYEE': {
       const employees = state.employees.map(e =>
         e.id === action.payload.id
-          ? { ...e, status: 'dismissed', dismissDate: action.payload.date }
+          ? {
+              ...e,
+              status: 'dismissed',
+              dismissDate: action.payload.date,
+              employmentHistory: [...(e.employmentHistory || []), { type: 'dismissed', date: action.payload.date }]
+            }
           : e
       )
       return { ...state, employees }
     }
     case 'RESTORE_EMPLOYEE': {
+      const id = action.payload.id ?? action.payload
+      const date = action.payload.date ?? new Date().toISOString().slice(0, 10)
       const employees = state.employees.map(e =>
-        e.id === action.payload ? { ...e, status: 'active', dismissDate: null } : e
+        e.id === id
+          ? {
+              ...e,
+              status: 'active',
+              dismissDate: null,
+              hireDate: date,
+              employmentHistory: [...(e.employmentHistory || []), { type: 'hired', date }]
+            }
+          : e
       )
       return { ...state, employees }
     }
@@ -166,7 +189,13 @@ function reducer(state, action) {
         state.payrolls.filter(p => p.month === month && p.year === year).map(p => p.employeeId)
       )
       const newPayrolls = prevPayrolls
-        .filter(p => !existingIds.has(p.employeeId))
+        .filter(p => {
+          if (existingIds.has(p.employeeId)) return false
+          const emp = state.employees.find(e => e.id === p.employeeId)
+          if (!emp) return false
+          if (emp.hireDate && new Date(emp.hireDate) > new Date(year, month, 0)) return false
+          return true
+        })
         .map(p => {
           const emp = state.employees.find(e => e.id === p.employeeId)
           const newP = {

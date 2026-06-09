@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useRef } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { Search, Plus, Copy, X, ChevronLeft, ChevronRight, Upload, AlertCircle, CheckCircle } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { generateId, formatMoney, monthName, getCurrentPeriod, BONUS_TYPE_LABELS, STATUS_LABELS, parseAmount, getEmpPaymentSettings, hasAdvanceConflict } from '../utils/helpers'
+import { generateId, formatMoney, monthName, getCurrentPeriod, BONUS_TYPE_LABELS, STATUS_LABELS, parseAmount, getEmpPaymentSettings, hasAdvanceConflict, formatDate } from '../utils/helpers'
 import { calcWorkedDays, calcWorkedDaysUntilDismiss, calcProRatedSalary } from './ProductionCalendar'
 
 // Editable cell component
@@ -9,20 +9,26 @@ function EditCell({ value, onChange, type = 'number', width = 90 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const inputRef = useRef()
+  const committingRef = useRef(false)
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.select()
+    }
+  }, [editing])
 
   function startEdit() {
-    setDraft(value || '')
+    setDraft(value ?? '')
     setEditing(true)
-    setTimeout(() => inputRef.current?.select(), 0)
   }
 
   function commit() {
+    if (committingRef.current) return
+    committingRef.current = true
     setEditing(false)
-    if (type === 'number') {
-      onChange(parseAmount(draft))
-    } else {
-      onChange(draft)
-    }
+    if (type === 'number') onChange(parseAmount(draft))
+    else onChange(draft)
+    setTimeout(() => { committingRef.current = false }, 0)
   }
 
   if (editing) {
@@ -168,34 +174,58 @@ export default function Payroll() {
     rows.forEach(p => dispatch({ type: 'UPDATE_PAYROLL_FIELD', payload: { id: p.id, field, value } }))
   }
 
-  function addMissingEmployees() {
-    const existingIds = new Set(payrollRows.map(p => p.employeeId))
-    const missing = activeEmployees.filter(e => !existingIds.has(e.id))
-    missing.forEach(emp => {
-      const newP = {
-        id: generateId(),
-        month, year,
-        employeeId: emp.id,
-        department: emp.department || '',
-        manager: emp.manager || '',
-        position: emp.position || '',
-        salaryAmount: emp.salary || 0,
-        bonus: 0, bonusType: 'regular',
-        additionalEarnings: 0,
-        vacationPay: 0,
-        totalAdvance: 0,
-        officialAdvance: 0, unofficialAdvance: 0,
-        officialSalaryPart: 0, salaryOnAccount: 0,
-        fine: 0, otherDeductions: 0,
-        totalEarned: emp.salary || 0,
-        totalDeducted: 0,
-        remaining: emp.salary || 0,
-        advanceStatus: 'unpaid', salaryStatus: 'unpaid', vacationPayStatus: 'unpaid',
-        advancePayDate: null, salaryPayDate: null,
-        comment: ''
+  const [showAddDropdown, setShowAddDropdown] = useState(false)
+  const addDropdownRef = useRef()
+
+  useEffect(() => {
+    if (!showAddDropdown) return
+    function handleClickOutside(e) {
+      if (addDropdownRef.current && !addDropdownRef.current.contains(e.target)) {
+        setShowAddDropdown(false)
       }
-      dispatch({ type: 'UPSERT_PAYROLL', payload: newP })
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showAddDropdown])
+
+  const missingEmployees = useMemo(() => {
+    const existingIds = new Set(payrollRows.map(p => p.employeeId))
+    return activeEmployees.filter(e => {
+      if (existingIds.has(e.id)) return false
+      if (e.hireDate && new Date(e.hireDate) > new Date(year, month, 0)) return false
+      return true
     })
+  }, [activeEmployees, payrollRows, year, month])
+
+  function addOneEmployee(emp) {
+    const newP = {
+      id: generateId(),
+      month, year,
+      employeeId: emp.id,
+      department: emp.department || '',
+      manager: emp.manager || '',
+      position: emp.position || '',
+      salaryAmount: emp.salary || 0,
+      bonus: 0, bonusType: 'regular',
+      additionalEarnings: 0,
+      vacationPay: 0,
+      totalAdvance: 0,
+      officialAdvance: 0, unofficialAdvance: 0,
+      officialSalaryPart: 0, salaryOnAccount: 0,
+      fine: 0, otherDeductions: 0,
+      totalEarned: emp.salary || 0,
+      totalDeducted: 0,
+      remaining: emp.salary || 0,
+      advanceStatus: 'unpaid', salaryStatus: 'unpaid', vacationPayStatus: 'unpaid',
+      advancePayDate: null, salaryPayDate: null,
+      comment: ''
+    }
+    dispatch({ type: 'UPSERT_PAYROLL', payload: newP })
+  }
+
+  function addMissingEmployees() {
+    missingEmployees.forEach(emp => addOneEmployee(emp))
+    setShowAddDropdown(false)
   }
 
   function copyPrevMonth() {
@@ -258,7 +288,7 @@ export default function Payroll() {
     setRegistry(null)
   }
 
-  const missingCount = activeEmployees.filter(e => !payrollRows.find(p => p.employeeId === e.id)).length
+  const missingCount = missingEmployees.length
 
   const topScrollRef = useRef()
   const tableRef = useRef()
@@ -285,9 +315,50 @@ export default function Payroll() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {missingCount > 0 && (
-            <button className="btn btn-secondary" onClick={addMissingEmployees}>
-              <Plus size={13} /> Добавить {missingCount} сотр.
-            </button>
+            <div style={{ position: 'relative' }} ref={addDropdownRef}>
+              <button className="btn btn-secondary" onClick={() => setShowAddDropdown(v => !v)}>
+                <Plus size={13} /> Добавить {missingCount} сотр.
+              </button>
+              {showAddDropdown && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, marginTop: 4,
+                  background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100,
+                  minWidth: 280, maxHeight: 320, overflowY: 'auto'
+                }}>
+                  {missingEmployees.map(emp => (
+                    <div
+                      key={emp.id}
+                      onClick={() => { addOneEmployee(emp); setShowAddDropdown(false) }}
+                      style={{
+                        padding: '8px 14px', cursor: 'pointer', display: 'flex',
+                        justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                        borderBottom: '1px solid #f3f4f6'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#f0f7ff'}
+                      onMouseLeave={e => e.currentTarget.style.background = ''}
+                    >
+                      <span style={{ fontWeight: 500, fontSize: 13 }}>{emp.fullName}</span>
+                      <span style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>
+                        принят {formatDate(emp.hireDate)}
+                      </span>
+                    </div>
+                  ))}
+                  <div
+                    onClick={addMissingEmployees}
+                    style={{
+                      padding: '8px 14px', cursor: 'pointer', fontSize: 12,
+                      color: '#1d4ed8', fontWeight: 600, textAlign: 'center',
+                      borderTop: '1px solid #e5e7eb'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}
+                  >
+                    + Добавить всех
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           <button className="btn btn-secondary" onClick={copyPrevMonth}>
             <Copy size={13} /> Копировать прошлый месяц

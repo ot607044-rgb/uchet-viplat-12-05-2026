@@ -586,6 +586,7 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
   const [tab, setTab] = useState(initialTab)
   const [dismissDate, setDismissDate] = useState(new Date().toISOString().slice(0, 10))
   const [showDismissForm, setShowDismissForm] = useState(false)
+  const [restoreDate, setRestoreDate] = useState(new Date().toISOString().slice(0, 10))
 
   const liveEmp = state.employees.find(e => e.id === employee.id) || employee
 
@@ -657,23 +658,19 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
             <button className="btn btn-danger btn-sm" onClick={onDelete} style={{ padding: '4px 10px', fontSize: 12 }}>
               <Trash2 size={13} /> Удалить
             </button>
-            {liveEmp.status === 'active'
-              ? <button className="btn btn-secondary btn-sm" onClick={() => setShowDismissForm(true)} style={{ padding: '4px 10px', fontSize: 12 }}>
-                  <UserX size={13} /> Уволить
-                </button>
-              : <button className="btn btn-success btn-sm" onClick={onRestore} style={{ padding: '4px 10px', fontSize: 12 }}>
-                  <UserCheck size={13} /> Восстановить
-                </button>
-            }
+            <button className="btn btn-secondary btn-sm" onClick={() => setTab('dismiss')} style={{ padding: '4px 10px', fontSize: 12 }}>
+              {liveEmp.status === 'active' ? <><UserX size={13} /> Уволить</> : <><UserCheck size={13} /> Восстановить</>}
+            </button>
             <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
             <button className="btn btn-icon btn-secondary" onClick={onClose}><X size={16} /></button>
           </div>
         </div>
 
         <div className="tabs" style={{ padding: '0 24px', marginBottom: 0 }}>
-          {['info', 'history', 'payrolls', 'absences'].map(t => (
-            <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-              {t === 'info' ? 'Информация' : t === 'history' ? 'История' : t === 'payrolls' ? 'Начисления' : '📅 График работы'}
+          {['info', 'history', 'payrolls', 'absences', 'dismiss'].map(t => (
+            <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}
+              style={t === 'dismiss' && liveEmp.status === 'dismissed' ? { color: '#dc2626' } : {}}>
+              {t === 'info' ? 'Информация' : t === 'history' ? 'История' : t === 'payrolls' ? 'Начисления' : t === 'absences' ? '📅 График работы' : '🚪 Увольнение'}
             </button>
           ))}
         </div>
@@ -887,23 +884,42 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
               <PreferredBankSection employeeId={liveEmp.id} />
               <VacationPolicySection employeeId={liveEmp.id} />
 
-              {showDismissForm && (
-                <div style={{ marginTop: 16, padding: 16, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
-                  <div className="form-label">Дата увольнения</div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                    <input type="date" className="input" value={dismissDate} onChange={e => setDismissDate(e.target.value)} />
-                    <button className="btn btn-danger" onClick={() => { onDismiss(dismissDate); setShowDismissForm(false) }}>Уволить</button>
-                    <button className="btn btn-secondary" onClick={() => setShowDismissForm(false)}>Отмена</button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
           {tab === 'history' && (
             <div>
-              {(liveEmp.salaryHistory?.length > 0 || liveEmp.positionHistory?.length > 0) ? (
+              {(liveEmp.employmentHistory?.length > 0 || liveEmp.hireDate || liveEmp.salaryHistory?.length > 0 || liveEmp.positionHistory?.length > 0) ? (
                 <>
+                  {(() => {
+                    const syntheticHistory = liveEmp.employmentHistory?.length > 0
+                      ? liveEmp.employmentHistory
+                      : [
+                          ...(liveEmp.hireDate ? [{ type: 'hired', date: liveEmp.hireDate }] : []),
+                          ...(liveEmp.dismissDate ? [{ type: 'dismissed', date: liveEmp.dismissDate }] : [])
+                        ]
+                    if (syntheticHistory.length === 0) return null
+                    return (
+                      <div style={{ marginBottom: 20 }}>
+                        <div className="section-title">История занятости</div>
+                        <table className="table" style={{ border: '1px solid var(--border)', borderRadius: 8 }}>
+                          <thead><tr><th>Дата</th><th>Событие</th></tr></thead>
+                          <tbody>
+                            {syntheticHistory.map((h, i) => (
+                              <tr key={i}>
+                                <td>{formatDate(h.date)}</td>
+                                <td>
+                                  <span className={`badge ${h.type === 'hired' ? 'badge-success' : 'badge-neutral'}`}>
+                                    {h.type === 'hired' ? 'Принят на работу' : 'Уволен'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )
+                  })()}
                   {liveEmp.salaryHistory?.length > 0 && (
                     <div style={{ marginBottom: 20 }}>
                       <div className="section-title">История оклада</div>
@@ -975,6 +991,66 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
           )}
 
           {tab === 'absences' && <AbsencesTab employeeId={liveEmp.id} />}
+
+          {tab === 'dismiss' && (
+            <div style={{ maxWidth: 480 }}>
+              {liveEmp.status === 'dismissed' ? (
+                <>
+                  <div style={{ padding: 16, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca', marginBottom: 20 }}>
+                    <div className="form-label" style={{ color: '#dc2626', marginBottom: 6 }}>Сотрудник уволен</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 13, color: '#374151' }}>Дата увольнения:</span>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{formatDate(liveEmp.dismissDate) || '—'}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                    <div className="form-label" style={{ color: '#15803d', marginBottom: 10 }}>Повторный приём на работу</div>
+                    <div style={{ marginBottom: 10 }}>
+                      <div className="form-label">Дата приёма</div>
+                      <input
+                        type="date"
+                        className="input"
+                        value={restoreDate}
+                        onChange={e => setRestoreDate(e.target.value)}
+                        style={{ maxWidth: 200 }}
+                      />
+                    </div>
+                    <button
+                      className="btn btn-success"
+                      onClick={() => {
+                        dispatch({ type: 'RESTORE_EMPLOYEE', payload: { id: liveEmp.id, date: restoreDate } })
+                      }}
+                    >
+                      <UserCheck size={14} /> Принять на работу
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <div style={{ padding: 16, background: '#f8f9fb', borderRadius: 8, border: '1px solid #e5e7eb', marginBottom: 16 }}>
+                    <div style={{ fontSize: 13, color: '#6b7280' }}>Сотрудник работает с {formatDate(liveEmp.hireDate) || '—'}</div>
+                  </div>
+                  <div style={{ padding: 16, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
+                    <div className="form-label" style={{ color: '#dc2626', marginBottom: 10 }}>Уволить сотрудника</div>
+                    <div style={{ marginBottom: 10 }}>
+                      <div className="form-label">Дата увольнения</div>
+                      <input
+                        type="date"
+                        className="input"
+                        value={dismissDate}
+                        onChange={e => setDismissDate(e.target.value)}
+                        style={{ maxWidth: 200 }}
+                      />
+                    </div>
+                    <button className="btn btn-danger" onClick={() => onDismiss(dismissDate)}>
+                      <UserX size={14} /> Уволить
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="modal-footer" style={{ justifyContent: 'flex-end' }}>
