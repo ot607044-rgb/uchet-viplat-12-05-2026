@@ -156,7 +156,7 @@ function VacationOverlapRules() {
 }
 
 export default function Settings() {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, importJSON } = useApp();
   const { settings } = state;
 
   const [local, setLocal] = useState({ ...settings });
@@ -193,9 +193,8 @@ export default function Settings() {
 
   const handleImport = async () => {
     if (window.electronAPI) {
-      const data = await window.electronAPI.importJSON();
-      if (data) {
-        dispatch({ type: 'LOAD', data });
+      const ok = await importJSON();
+      if (ok) {
         setImportMsg('Данные успешно импортированы!');
         setTimeout(() => setImportMsg(''), 3000);
       }
@@ -210,7 +209,7 @@ export default function Settings() {
         reader.onload = (ev) => {
           try {
             const data = JSON.parse(ev.target.result);
-            dispatch({ type: 'LOAD', data });
+            dispatch({ type: 'LOAD', payload: data });
             setImportMsg('Данные успешно импортированы!');
             setTimeout(() => setImportMsg(''), 3000);
           } catch {
