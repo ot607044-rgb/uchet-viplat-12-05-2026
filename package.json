@@ -30,6 +30,7 @@
     },
     "win": {
       "target": "nsis",
+      "artifactName": "payroll-app-setup-${version}.exe",
       "signingHashAlgorithms": null
     },
     "nsis": {
