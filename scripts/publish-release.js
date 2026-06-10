@@ -2,8 +2,8 @@ const { execSync } = require('child_process')
 const { version } = require('../package.json')
 
 const tag = `v${version}`
-const exe = `release/Учет выплат Setup ${version}.exe`
-const blockmap = `release/Учет выплат Setup ${version}.exe.blockmap`
+const exe = `release/payroll-app-setup-${version}.exe`
+const blockmap = `release/payroll-app-setup-${version}.exe.blockmap`
 const yml = `release/latest.yml`
 
 console.log(`Отправка тега ${tag} на GitHub...`)
