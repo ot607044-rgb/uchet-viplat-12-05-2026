@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   printPayslip: (opts) => ipcRenderer.invoke('print-payslip', opts),
   showNotification: (opts) => ipcRenderer.invoke('show-notification', opts),
   getDataPath: () => ipcRenderer.invoke('get-data-path'),
+  getVersion: () => ipcRenderer.invoke('get-version'),
   readPdfRegistry: () => ipcRenderer.invoke('read-pdf-registry'),
   readPdfTaxes:    () => ipcRenderer.invoke('read-pdf-taxes'),
   platform: process.platform

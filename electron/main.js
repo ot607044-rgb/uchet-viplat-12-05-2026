@@ -240,6 +240,7 @@ ipcMain.handle('show-notification', (_, { title, body }) => {
 })
 
 ipcMain.handle('get-data-path', () => DATA_FILE)
+ipcMain.handle('get-version', () => app.getVersion())
 
 // ── Налоги и взносы (ЗУП) reader ──────────────────────────────────────────────
 ipcMain.handle('read-pdf-taxes', async () => {
