@@ -7,9 +7,9 @@
     "dev": "concurrently \"vite --port 5173\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "vite build && electron-builder",
     "electron": "electron .",
-    "release:patch": "npm version patch && npm run build",
-    "release:minor": "npm version minor && npm run build",
-    "release:major": "npm version major && npm run build"
+    "release:patch": "npm version patch && npm run build && node scripts/publish-release.js",
+    "release:minor": "npm version minor && npm run build && node scripts/publish-release.js",
+    "release:major": "npm version major && npm run build && node scripts/publish-release.js"
   },
   "build": {
     "appId": "com.company.payroll",
@@ -29,8 +29,15 @@
       "repo": "uchet-viplat-12-05-2026"
     },
     "win": {
-      "target": "portable",
+      "target": "nsis",
       "signingHashAlgorithms": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Учет выплат"
     },
     "mac": {
       "category": "public.app-category.finance"
