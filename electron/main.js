@@ -80,14 +80,30 @@ autoUpdater.on('update-available', (info) => {
   }).then(({ response }) => {
     if (response === 0) {
       autoUpdater.downloadUpdate()
-      win.webContents.send('update-downloading')
+      dialog.showMessageBox(win, {
+        type: 'info',
+        title: 'Скачивание...',
+        message: 'Обновление скачивается в фоне.',
+        detail: 'Когда скачается — появится окно с предложением перезапустить.',
+        buttons: ['OK']
+      })
     }
   })
+})
+
+autoUpdater.on('download-progress', (progress) => {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (win) {
+    win.setProgressBar(progress.percent / 100)
+    win.setTitle(`Скачивание обновления: ${Math.round(progress.percent)}%`)
+  }
 })
 
 autoUpdater.on('update-downloaded', () => {
   const win = BrowserWindow.getAllWindows()[0]
   if (!win) return
+  win.setProgressBar(-1)
+  win.setTitle('Учет выплат')
   dialog.showMessageBox(win, {
     type: 'info',
     title: 'Обновление готово',
