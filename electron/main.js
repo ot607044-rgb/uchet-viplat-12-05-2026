@@ -99,8 +99,29 @@ autoUpdater.on('update-downloaded', () => {
   })
 })
 
+autoUpdater.on('update-not-available', () => {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (!win) return
+  dialog.showMessageBox(win, {
+    type: 'info',
+    title: 'Обновлений нет',
+    message: 'У вас установлена последняя версия программы.',
+    buttons: ['OK']
+  })
+})
+
 autoUpdater.on('error', (err) => {
   console.error('Auto-updater error:', err)
+  const win = BrowserWindow.getAllWindows()[0]
+  if (win) {
+    dialog.showMessageBox(win, {
+      type: 'error',
+      title: 'Ошибка обновления',
+      message: 'Не удалось проверить обновления.',
+      detail: err.message,
+      buttons: ['OK']
+    })
+  }
 })
 
 app.on('window-all-closed', () => {
@@ -241,6 +262,7 @@ ipcMain.handle('show-notification', (_, { title, body }) => {
 
 ipcMain.handle('get-data-path', () => DATA_FILE)
 ipcMain.handle('get-version', () => app.getVersion())
+ipcMain.handle('check-for-updates', () => autoUpdater.checkForUpdates())
 
 // ── Налоги и взносы (ЗУП) reader ──────────────────────────────────────────────
 ipcMain.handle('read-pdf-taxes', async () => {
