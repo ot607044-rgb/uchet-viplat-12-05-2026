@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Users, UserPlus, Calculator, CreditCard,
   FileText, Building2, BarChart2, Settings, ChevronRight, TrendingUp, CalendarDays, CalendarRange, Percent
@@ -23,6 +23,13 @@ const NAV_ITEMS = [
 export default function Sidebar({ activePage, onNavigate }) {
   const { state } = useApp()
   const companyName = state.settings?.companyName || 'Учет выплат'
+  const [version, setVersion] = useState('')
+
+  useEffect(() => {
+    if (window.electronAPI?.getVersion) {
+      window.electronAPI.getVersion().then(v => setVersion(v))
+    }
+  }, [])
 
   return (
     <aside style={{
@@ -134,6 +141,7 @@ export default function Sidebar({ activePage, onNavigate }) {
         textAlign: 'center'
       }}>
         Данные хранятся локально
+        {version && <div style={{ marginTop: 4 }}>v{version}</div>}
       </div>
     </aside>
   )

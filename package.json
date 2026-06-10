@@ -1,12 +1,15 @@
 {
   "name": "payroll-app",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Учет выплат",
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"vite --port 5173\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "vite build && electron-builder",
-    "electron": "electron ."
+    "electron": "electron .",
+    "release:patch": "npm version patch && npm run build",
+    "release:minor": "npm version minor && npm run build",
+    "release:major": "npm version major && npm run build"
   },
   "build": {
     "appId": "com.company.payroll",
