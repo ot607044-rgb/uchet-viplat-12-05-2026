@@ -134,7 +134,7 @@ autoUpdater.on('error', (err) => {
       type: 'error',
       title: 'Ошибка обновления',
       message: 'Не удалось проверить обновления.',
-      detail: err.message,
+      detail: err.message + '\n\nПроверьте подключение к интернету, либо отключите VPN.',
       buttons: ['OK']
     })
   }
