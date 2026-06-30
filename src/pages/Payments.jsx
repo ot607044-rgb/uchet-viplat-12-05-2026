@@ -132,6 +132,11 @@ export default function Payments() {
         <tr style={{ background: '#f9fafb' }}>
           <td style={{ fontWeight: 600 }}>{p.empName}</td>
           <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{p.department}</td>
+          <td style={{ fontSize: 11 }}>
+            {p.workFormat === 'удалённо' ? <span style={{ color: '#7c3aed', fontWeight: 600 }}>🏠 Удалённо</span>
+              : p.workFormat === 'гибрид' ? <span style={{ color: '#0891b2', fontWeight: 600 }}>🔄 Гибрид</span>
+              : <span style={{ color: '#3b82f6', fontWeight: 600 }}>🏢 Офис</span>}
+          </td>
           <td colSpan={4} style={{ color: 'var(--text-muted)', fontSize: 12, fontStyle: 'italic' }}>Аванс не предусмотрен</td>
           <td /><td />
         </tr>
@@ -144,6 +149,11 @@ export default function Payments() {
         <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{p.department}</td>
         {isAdvance && (
           <>
+            <td style={{ fontSize: 11 }}>
+              {p.workFormat === 'удалённо' ? <span style={{ color: '#7c3aed', fontWeight: 600 }}>🏠 Удалённо</span>
+                : p.workFormat === 'гибрид' ? <span style={{ color: '#0891b2', fontWeight: 600 }}>🔄 Гибрид</span>
+                : <span style={{ color: '#3b82f6', fontWeight: 600 }}>🏢 Офис</span>}
+            </td>
             <td className="money" style={{ fontWeight: 700 }}>{getAdvanceAmt(p) > 0 ? formatMoney(getAdvanceAmt(p)) : '—'}</td>
             <td className="money">{p.officialAdvance > 0 ? formatMoney(p.officialAdvance) : '—'}</td>
             <td className="money">{p.unofficialAdvance > 0 ? formatMoney(p.unofficialAdvance) : '—'}</td>
@@ -322,6 +332,7 @@ export default function Payments() {
                 <tr>
                   <th style={{ background: 'var(--surface, #fff)' }}>ФИО</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Отдел</th>
+                  <th style={{ background: 'var(--surface, #fff)' }}>Формат</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Итог. аванс</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Офиц. аванс</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Второй аванс</th>
@@ -337,6 +348,7 @@ export default function Payments() {
               <tfoot>
                 <tr className="table-footer">
                   <td colSpan={2}>Итого ({payrollsForAdvance.length})</td>
+                  <td />
                   <td className="money" style={{ fontWeight: 700 }}>{formatMoney(totalAdvances)}</td>
                   <td className="money">{formatMoney(payrollsForAdvance.reduce((s, p) => s + (p.officialAdvance || 0), 0))}</td>
                   <td className="money">{formatMoney(payrollsForAdvance.reduce((s, p) => s + (p.unofficialAdvance || 0), 0))}</td>
