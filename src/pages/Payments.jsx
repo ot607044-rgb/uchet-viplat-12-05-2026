@@ -133,7 +133,7 @@ export default function Payments() {
           <td style={{ fontWeight: 600 }}>{p.empName}</td>
           <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{p.department}</td>
           <td colSpan={4} style={{ color: 'var(--text-muted)', fontSize: 12, fontStyle: 'italic' }}>Аванс не предусмотрен</td>
-          <td /><td /><td />
+          <td /><td />
         </tr>
       )
     }
@@ -173,15 +173,12 @@ export default function Payments() {
         )}
         <td className="money" style={{ fontWeight: 700, fontSize: 14 }}>
           {isAdvance
-            ? (amount > 0 ? formatMoney(amount) : '—')
+            ? (p.advanceStatus === 'paid'
+                ? <span style={{ color: '#059669', fontSize: 12 }}>✓ выплачено</span>
+                : (amount > 0 ? formatMoney(amount) : '—'))
             : (p.salaryStatus === 'paid' ? <span style={{ color: '#059669', fontSize: 12 }}>✓ выплачено</span> : (amount > 0 ? formatMoney(amount) : '—'))
           }
         </td>
-        {isAdvance && (
-          <td className="money" style={{ fontWeight: 700, color: p.advanceStatus === 'paid' ? '#059669' : 'var(--text-muted)' }}>
-            {p.advanceStatus === 'paid' && getAdvanceAmt(p) > 0 ? formatMoney(getAdvanceAmt(p)) : '—'}
-          </td>
-        )}
         <td>
           <StatusButtons status={status} onSet={s => setStatus(p.id, statusField, s)} />
         </td>
@@ -331,7 +328,6 @@ export default function Payments() {
                   <th style={{ background: 'var(--surface, #fff)' }}>В счёт з/п</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>День аванса</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Итого к выплате</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Итого выдано</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Статус</th>
                 </tr>
               </thead>
@@ -347,9 +343,6 @@ export default function Payments() {
                   <td className="money">{formatMoney(payrollsForAdvance.reduce((s, p) => s + (p.salaryOnAccount || 0), 0))}</td>
                   <td />
                   <td className="money">{formatMoney(totalAdvances)}</td>
-                  <td className="money" style={{ color: '#059669', fontWeight: 700 }}>
-                    {formatMoney(payrollsForAdvance.filter(p => p.advanceStatus === 'paid').reduce((s, p) => s + getAdvanceAmt(p), 0))}
-                  </td>
                   <td />
                 </tr>
               </tfoot>
