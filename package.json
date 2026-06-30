@@ -1,6 +1,6 @@
 {
   "name": "payroll-app",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "description": "Учет выплат",
   "main": "electron/main.js",
   "scripts": {
