@@ -9,6 +9,9 @@ export default function Payments() {
   const [month, setMonth] = useState(now.month)
   const [year, setYear] = useState(now.year)
   const [tab, setTab] = useState('advance') // 'advance' | 'salary' | 'all'
+  const [advSort, setAdvSort] = useState({ field: null, dir: 'asc' })
+  const [salSort, setSalSort] = useState({ field: null, dir: 'asc' })
+  const [allSort, setAllSort] = useState({ field: null, dir: 'asc' })
 
   // Sync horizontal scrollbars (top mirror ↔ bottom table)
   const advTopRef = useRef(null); const advBotRef = useRef(null)
@@ -98,6 +101,54 @@ export default function Payments() {
     advance_and_salary: 'Аванс + зарплата',
     single_payment: 'Одним платежом',
     custom: 'Индивидуальная'
+  }
+
+  const FORMAT_ORDER = { 'офис': 0, 'гибрид': 1, 'удалённо': 2 }
+  const STATUS_ORDER = { 'unpaid': 0, 'partial': 1, 'paid': 2 }
+
+  function applySort(rows, { field, dir }, getAmount, getStatus) {
+    if (!field) return rows
+    const mul = dir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      if (field === 'format') return mul * ((FORMAT_ORDER[a.workFormat] ?? 99) - (FORMAT_ORDER[b.workFormat] ?? 99))
+      if (field === 'amount') return mul * ((getAmount(a) || 0) - (getAmount(b) || 0))
+      if (field === 'status') return mul * ((STATUS_ORDER[getStatus(a)] ?? 0) - (STATUS_ORDER[getStatus(b)] ?? 0))
+      return 0
+    })
+  }
+
+  function toggleSort(current, setter, field) {
+    setter(prev => prev.field === field
+      ? prev.dir === 'asc' ? { field, dir: 'desc' } : { field: null, dir: 'asc' }
+      : { field, dir: 'asc' }
+    )
+  }
+
+  const sortedAdvance = useMemo(
+    () => applySort(payrollsForAdvance, advSort, p => getAdvanceAmt(p), p => p.advanceStatus || 'unpaid'),
+    [payrollsForAdvance, advSort]
+  )
+  const sortedSalary = useMemo(
+    () => applySort(payrolls, salSort, p => p.remaining || 0, p => p.salaryStatus || 'unpaid'),
+    [payrolls, salSort]
+  )
+  const sortedAll = useMemo(
+    () => applySort(payrolls, allSort, p => p.remaining || 0, p => overallStatus(p)),
+    [payrolls, allSort]
+  )
+
+  function SortTh({ label, field, sort, onToggle, style }) {
+    const active = sort.field === field
+    return (
+      <th onClick={() => onToggle(field)} style={{
+        background: 'var(--surface, #fff)', cursor: 'pointer', userSelect: 'none',
+        color: active ? 'var(--primary, #3b82f6)' : undefined,
+        borderBottom: active ? '2px solid var(--primary, #3b82f6)' : undefined,
+        whiteSpace: 'nowrap', ...style
+      }}>
+        {label} {active ? (sort.dir === 'asc' ? '▲' : '▼') : <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>⇅</span>}
+      </th>
+    )
   }
 
   function StatusButtons({ status, onSet }) {
@@ -332,18 +383,18 @@ export default function Payments() {
                 <tr>
                   <th style={{ background: 'var(--surface, #fff)' }}>ФИО</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Отдел</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Формат</th>
+                  <SortTh label="Формат" field="format" sort={advSort} onToggle={f => toggleSort(advSort, setAdvSort, f)} />
                   <th style={{ background: 'var(--surface, #fff)' }}>Итог. аванс</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Офиц. аванс</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Второй аванс</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>В счёт з/п</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>День аванса</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Итого к выплате</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Статус</th>
+                  <SortTh label="Итого к выплате" field="amount" sort={advSort} onToggle={f => toggleSort(advSort, setAdvSort, f)} />
+                  <SortTh label="Статус" field="status" sort={advSort} onToggle={f => toggleSort(advSort, setAdvSort, f)} />
                 </tr>
               </thead>
               <tbody>
-                {payrollsForAdvance.map(p => <PaymentRow key={p.id} p={p} type="advance" />)}
+                {sortedAdvance.map(p => <PaymentRow key={p.id} p={p} type="advance" />)}
               </tbody>
               <tfoot>
                 <tr className="table-footer">
@@ -373,17 +424,17 @@ export default function Payments() {
                 <tr>
                   <th style={{ background: 'var(--surface, #fff)' }}>ФИО</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Отдел</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Формат</th>
+                  <SortTh label="Формат" field="format" sort={salSort} onToggle={f => toggleSort(salSort, setSalSort, f)} />
                   <th style={{ background: 'var(--surface, #fff)' }}>Начислено</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Итого выдано</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Схема</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>День з/п</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Остаток к выплате</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Статус</th>
+                  <SortTh label="Остаток к выплате" field="amount" sort={salSort} onToggle={f => toggleSort(salSort, setSalSort, f)} />
+                  <SortTh label="Статус" field="status" sort={salSort} onToggle={f => toggleSort(salSort, setSalSort, f)} />
                 </tr>
               </thead>
               <tbody>
-                {payrolls.map(p => (
+                {sortedSalary.map(p => (
                   <PaymentRow key={p.id} p={p} type="salary" />
                 ))}
               </tbody>
@@ -420,13 +471,13 @@ export default function Payments() {
                 <th style={{ background: 'var(--surface, #fff)' }}>Сумма з/п</th>
                 <th style={{ background: 'var(--surface, #fff)' }}>Статус з/п</th>
                 <th style={{ background: 'var(--surface, #fff)' }}>Итого выдано</th>
-                <th style={{ background: 'var(--surface, #fff)' }}>Остаток</th>
-                <th style={{ background: 'var(--surface, #fff)' }}>Общий статус</th>
+                <SortTh label="Остаток" field="amount" sort={allSort} onToggle={f => toggleSort(allSort, setAllSort, f)} />
+                <SortTh label="Общий статус" field="status" sort={allSort} onToggle={f => toggleSort(allSort, setAllSort, f)} />
                 <th style={{ background: 'var(--surface, #fff)' }}>Комментарий</th>
               </tr>
             </thead>
             <tbody>
-              {payrolls.map(p => {
+              {sortedAll.map(p => {
                 const hasAdv = p.ps.hasAdvance
                 const advAmt = (p.officialAdvance || 0) + (p.unofficialAdvance || 0) + (p.salaryOnAccount || 0)
                 const os = overallStatus(p)
