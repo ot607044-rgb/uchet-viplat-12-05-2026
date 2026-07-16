@@ -12,6 +12,8 @@ export default function Payments() {
   const [advSort, setAdvSort] = useState({ field: null, dir: 'asc' })
   const [salSort, setSalSort] = useState({ field: null, dir: 'asc' })
   const [allSort, setAllSort] = useState({ field: null, dir: 'asc' })
+  const [filterFormat, setFilterFormat] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
 
   // Sync horizontal scrollbars (top mirror ↔ bottom table)
   const advTopRef = useRef(null); const advBotRef = useRef(null)
@@ -78,6 +80,23 @@ export default function Payments() {
   const payrollsWithAdvance = payrollsForAdvance.filter(p => p.ps.hasAdvance)
   const advancePaid = payrollsWithAdvance.filter(p => p.advanceStatus === 'paid')
   const salaryPaid = payrolls.filter(p => p.salaryStatus === 'paid')
+
+  // Filtered views (for tables only, totals/cards remain unfiltered)
+  const filteredAdvance = payrollsForAdvance.filter(p => {
+    if (filterFormat && p.workFormat !== filterFormat) return false
+    if (filterStatus && (p.advanceStatus || 'unpaid') !== filterStatus) return false
+    return true
+  })
+  const filteredSalary = payrolls.filter(p => {
+    if (filterFormat && p.workFormat !== filterFormat) return false
+    if (filterStatus && (p.salaryStatus || 'unpaid') !== filterStatus) return false
+    return true
+  })
+  const filteredAll = payrolls.filter(p => {
+    if (filterFormat && p.workFormat !== filterFormat) return false
+    if (filterStatus && overallStatus(p) !== filterStatus) return false
+    return true
+  })
   // Используем totalAdvance если задан, иначе fallback на official+unofficial
   const getAdvanceAmt = p => p.totalAdvance != null ? (p.totalAdvance || 0) : ((p.officialAdvance || 0) + (p.unofficialAdvance || 0))
   const totalAdvances = payrollsWithAdvance.reduce((s, p) => s + getAdvanceAmt(p), 0)
@@ -125,16 +144,16 @@ export default function Payments() {
   }
 
   const sortedAdvance = useMemo(
-    () => applySort(payrollsForAdvance, advSort, p => getAdvanceAmt(p), p => p.advanceStatus || 'unpaid'),
-    [payrollsForAdvance, advSort]
+    () => applySort(filteredAdvance, advSort, p => getAdvanceAmt(p), p => p.advanceStatus || 'unpaid'),
+    [filteredAdvance, advSort]
   )
   const sortedSalary = useMemo(
-    () => applySort(payrolls, salSort, p => p.remaining || 0, p => p.salaryStatus || 'unpaid'),
-    [payrolls, salSort]
+    () => applySort(filteredSalary, salSort, p => p.remaining || 0, p => p.salaryStatus || 'unpaid'),
+    [filteredSalary, salSort]
   )
   const sortedAll = useMemo(
-    () => applySort(payrolls, allSort, p => p.remaining || 0, p => overallStatus(p)),
-    [payrolls, allSort]
+    () => applySort(filteredAll, allSort, p => p.remaining || 0, p => overallStatus(p)),
+    [filteredAll, allSort]
   )
 
   function SortTh({ label, field, sort, onToggle, style }) {
@@ -369,13 +388,32 @@ export default function Payments() {
         </div>
       ) : tab === 'advance' ? (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10, gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => markAll('advanceStatus', 'paid')}>
-              Отметить всё выплаченным
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={() => markAll('advanceStatus', 'unpaid')}>
-              Сбросить
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select className="select" value={filterFormat} onChange={e => setFilterFormat(e.target.value)}>
+                <option value="">Все форматы</option>
+                <option value="офис">🏢 Офис</option>
+                <option value="удалённо">🏠 Удалённо</option>
+                <option value="гибрид">🔄 Гибрид</option>
+              </select>
+              <select className="select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                <option value="">Все статусы</option>
+                <option value="unpaid">Не выплачено</option>
+                <option value="partial">Частично</option>
+                <option value="paid">Выплачено</option>
+              </select>
+              {(filterFormat || filterStatus) && (
+                <button className="btn btn-secondary btn-sm" onClick={() => { setFilterFormat(''); setFilterStatus('') }}>✕ Сбросить</button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => markAll('advanceStatus', 'paid')}>
+                Отметить всё выплаченным
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={() => markAll('advanceStatus', 'unpaid')}>
+                Сбросить
+              </button>
+            </div>
           </div>
           <DualScrollTable topRef={advTopRef} botRef={advBotRef} onScrollTop={syncAdvTop} onScrollBot={syncAdvBot}>
             <table className="table">
@@ -414,9 +452,28 @@ export default function Payments() {
         </div>
       ) : tab === 'salary' ? (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10, gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => markAll('salaryStatus', 'paid')}>Отметить всё выплаченным</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => markAll('salaryStatus', 'unpaid')}>Сбросить</button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select className="select" value={filterFormat} onChange={e => setFilterFormat(e.target.value)}>
+                <option value="">Все форматы</option>
+                <option value="офис">🏢 Офис</option>
+                <option value="удалённо">🏠 Удалённо</option>
+                <option value="гибрид">🔄 Гибрид</option>
+              </select>
+              <select className="select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                <option value="">Все статусы</option>
+                <option value="unpaid">Не выплачено</option>
+                <option value="partial">Частично</option>
+                <option value="paid">Выплачено</option>
+              </select>
+              {(filterFormat || filterStatus) && (
+                <button className="btn btn-secondary btn-sm" onClick={() => { setFilterFormat(''); setFilterStatus('') }}>✕ Сбросить</button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => markAll('salaryStatus', 'paid')}>Отметить всё выплаченным</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => markAll('salaryStatus', 'unpaid')}>Сбросить</button>
+            </div>
           </div>
           <DualScrollTable topRef={salTopRef} botRef={salBotRef} onScrollTop={syncSalTop} onScrollBot={syncSalBot}>
             <table className="table">
@@ -456,6 +513,24 @@ export default function Payments() {
         </div>
       ) : (
         /* Сводная таблица */
+        <div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <select className="select" value={filterFormat} onChange={e => setFilterFormat(e.target.value)}>
+            <option value="">Все форматы</option>
+            <option value="офис">🏢 Офис</option>
+            <option value="удалённо">🏠 Удалённо</option>
+            <option value="гибрид">🔄 Гибрид</option>
+          </select>
+          <select className="select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+            <option value="">Все статусы</option>
+            <option value="unpaid">Не выплачено</option>
+            <option value="partial">Частично</option>
+            <option value="paid">Выплачено</option>
+          </select>
+          {(filterFormat || filterStatus) && (
+            <button className="btn btn-secondary btn-sm" onClick={() => { setFilterFormat(''); setFilterStatus('') }}>✕ Сбросить</button>
+          )}
+        </div>
         <DualScrollTable topRef={allTopRef} botRef={allBotRef} onScrollTop={syncAllTop} onScrollBot={syncAllBot} minWidth={1200}>
           <table className="table" style={{ minWidth: 1200, fontSize: 12 }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
@@ -546,6 +621,7 @@ export default function Payments() {
             </tfoot>
           </table>
         </DualScrollTable>
+        </div>
       )}
     </div>
   )
