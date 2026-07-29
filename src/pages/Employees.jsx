@@ -224,7 +224,7 @@ function EmployeeEditForm({ empId, onDone }) {
   const [errors, setErrors] = useState({})
 
   const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))]
-  const managers = [...new Set(state.employees.map(e => e.manager).filter(Boolean))]
+  const managers = [...new Set(state.employees.filter(e => e.status !== 'dismissed').map(e => e.fullName).filter(Boolean))]
   const positions = [...new Set(state.employees.map(e => e.position).filter(Boolean))]
   const cooperationFormats = [...BASE_COOPERATION_FORMATS, ...(state.settings?.cooperationFormats || []).filter(v => !BASE_COOPERATION_FORMATS.includes(v))]
   const workSchedules = [...BASE_WORK_SCHEDULES, ...(state.settings?.workSchedules || []).filter(v => !BASE_WORK_SCHEDULES.includes(v))]
@@ -591,7 +591,7 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
   const liveEmp = state.employees.find(e => e.id === employee.id) || employee
 
   const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))]
-  const managers = [...new Set(state.employees.map(e => e.manager).filter(Boolean))]
+  const managers = [...new Set(state.employees.filter(e => e.status !== 'dismissed').map(e => e.fullName).filter(Boolean))]
   const positions = [...new Set(state.employees.map(e => e.position).filter(Boolean))]
   const cooperationFormats = [...BASE_COOPERATION_FORMATS, ...(state.settings?.cooperationFormats || []).filter(v => !BASE_COOPERATION_FORMATS.includes(v))]
   const workSchedules = [...BASE_WORK_SCHEDULES, ...(state.settings?.workSchedules || []).filter(v => !BASE_WORK_SCHEDULES.includes(v))]

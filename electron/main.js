@@ -80,14 +80,30 @@ autoUpdater.on('update-available', (info) => {
   }).then(({ response }) => {
     if (response === 0) {
       autoUpdater.downloadUpdate()
-      win.webContents.send('update-downloading')
+      dialog.showMessageBox(win, {
+        type: 'info',
+        title: 'Скачивание...',
+        message: 'Обновление скачивается в фоне.',
+        detail: 'Когда скачается — появится окно с предложением перезапустить.',
+        buttons: ['OK']
+      })
     }
   })
+})
+
+autoUpdater.on('download-progress', (progress) => {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (win) {
+    win.setProgressBar(progress.percent / 100)
+    win.setTitle(`Скачивание обновления: ${Math.round(progress.percent)}%`)
+  }
 })
 
 autoUpdater.on('update-downloaded', () => {
   const win = BrowserWindow.getAllWindows()[0]
   if (!win) return
+  win.setProgressBar(-1)
+  win.setTitle('Учет выплат')
   dialog.showMessageBox(win, {
     type: 'info',
     title: 'Обновление готово',
@@ -99,8 +115,29 @@ autoUpdater.on('update-downloaded', () => {
   })
 })
 
+autoUpdater.on('update-not-available', () => {
+  const win = BrowserWindow.getAllWindows()[0]
+  if (!win) return
+  dialog.showMessageBox(win, {
+    type: 'info',
+    title: 'Обновлений нет',
+    message: 'У вас установлена последняя версия программы.',
+    buttons: ['OK']
+  })
+})
+
 autoUpdater.on('error', (err) => {
   console.error('Auto-updater error:', err)
+  const win = BrowserWindow.getAllWindows()[0]
+  if (win) {
+    dialog.showMessageBox(win, {
+      type: 'error',
+      title: 'Ошибка обновления',
+      message: 'Не удалось проверить обновления.',
+      detail: err.message + '\n\nПроверьте подключение к интернету, либо отключите VPN.',
+      buttons: ['OK']
+    })
+  }
 })
 
 app.on('window-all-closed', () => {
@@ -241,6 +278,7 @@ ipcMain.handle('show-notification', (_, { title, body }) => {
 
 ipcMain.handle('get-data-path', () => DATA_FILE)
 ipcMain.handle('get-version', () => app.getVersion())
+ipcMain.handle('check-for-updates', () => autoUpdater.checkForUpdates())
 
 // ── Налоги и взносы (ЗУП) reader ──────────────────────────────────────────────
 ipcMain.handle('read-pdf-taxes', async () => {

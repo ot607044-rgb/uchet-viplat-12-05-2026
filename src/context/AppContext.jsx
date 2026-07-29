@@ -188,12 +188,14 @@ function reducer(state, action) {
       const existingIds = new Set(
         state.payrolls.filter(p => p.month === month && p.year === year).map(p => p.employeeId)
       )
+      const firstDayOfMonth = new Date(year, month - 1, 1)
       const newPayrolls = prevPayrolls
         .filter(p => {
           if (existingIds.has(p.employeeId)) return false
           const emp = state.employees.find(e => e.id === p.employeeId)
           if (!emp) return false
           if (emp.hireDate && new Date(emp.hireDate) > new Date(year, month, 0)) return false
+          if (emp.status === 'dismissed' && emp.dismissDate && new Date(emp.dismissDate) < firstDayOfMonth) return false
           return true
         })
         .map(p => {

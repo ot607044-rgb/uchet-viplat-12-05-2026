@@ -190,12 +190,15 @@ export default function Payroll() {
 
   const missingEmployees = useMemo(() => {
     const existingIds = new Set(payrollRows.map(p => p.employeeId))
-    return activeEmployees.filter(e => {
+    const firstDayOfMonth = new Date(year, month - 1, 1)
+    return state.employees.filter(e => {
       if (existingIds.has(e.id)) return false
       if (e.hireDate && new Date(e.hireDate) > new Date(year, month, 0)) return false
+      // Уволенный до начала месяца — не включаем
+      if (e.status === 'dismissed' && e.dismissDate && new Date(e.dismissDate) < firstDayOfMonth) return false
       return true
     })
-  }, [activeEmployees, payrollRows, year, month])
+  }, [state.employees, payrollRows, year, month])
 
   function addOneEmployee(emp) {
     const newP = {

@@ -9,6 +9,11 @@ export default function Payments() {
   const [month, setMonth] = useState(now.month)
   const [year, setYear] = useState(now.year)
   const [tab, setTab] = useState('advance') // 'advance' | 'salary' | 'all'
+  const [advSort, setAdvSort] = useState({ field: null, dir: 'asc' })
+  const [salSort, setSalSort] = useState({ field: null, dir: 'asc' })
+  const [allSort, setAllSort] = useState({ field: null, dir: 'asc' })
+  const [filterFormat, setFilterFormat] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
 
   // Sync horizontal scrollbars (top mirror ↔ bottom table)
   const advTopRef = useRef(null); const advBotRef = useRef(null)
@@ -75,6 +80,23 @@ export default function Payments() {
   const payrollsWithAdvance = payrollsForAdvance.filter(p => p.ps.hasAdvance)
   const advancePaid = payrollsWithAdvance.filter(p => p.advanceStatus === 'paid')
   const salaryPaid = payrolls.filter(p => p.salaryStatus === 'paid')
+
+  // Filtered views (for tables only, totals/cards remain unfiltered)
+  const filteredAdvance = payrollsForAdvance.filter(p => {
+    if (filterFormat && p.workFormat !== filterFormat) return false
+    if (filterStatus && (p.advanceStatus || 'unpaid') !== filterStatus) return false
+    return true
+  })
+  const filteredSalary = payrolls.filter(p => {
+    if (filterFormat && p.workFormat !== filterFormat) return false
+    if (filterStatus && (p.salaryStatus || 'unpaid') !== filterStatus) return false
+    return true
+  })
+  const filteredAll = payrolls.filter(p => {
+    if (filterFormat && p.workFormat !== filterFormat) return false
+    if (filterStatus && overallStatus(p) !== filterStatus) return false
+    return true
+  })
   // Используем totalAdvance если задан, иначе fallback на official+unofficial
   const getAdvanceAmt = p => p.totalAdvance != null ? (p.totalAdvance || 0) : ((p.officialAdvance || 0) + (p.unofficialAdvance || 0))
   const totalAdvances = payrollsWithAdvance.reduce((s, p) => s + getAdvanceAmt(p), 0)
@@ -98,6 +120,54 @@ export default function Payments() {
     advance_and_salary: 'Аванс + зарплата',
     single_payment: 'Одним платежом',
     custom: 'Индивидуальная'
+  }
+
+  const FORMAT_ORDER = { 'офис': 0, 'гибрид': 1, 'удалённо': 2 }
+  const STATUS_ORDER = { 'unpaid': 0, 'partial': 1, 'paid': 2 }
+
+  function applySort(rows, { field, dir }, getAmount, getStatus) {
+    if (!field) return rows
+    const mul = dir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      if (field === 'format') return mul * ((FORMAT_ORDER[a.workFormat] ?? 99) - (FORMAT_ORDER[b.workFormat] ?? 99))
+      if (field === 'amount') return mul * ((getAmount(a) || 0) - (getAmount(b) || 0))
+      if (field === 'status') return mul * ((STATUS_ORDER[getStatus(a)] ?? 0) - (STATUS_ORDER[getStatus(b)] ?? 0))
+      return 0
+    })
+  }
+
+  function toggleSort(current, setter, field) {
+    setter(prev => prev.field === field
+      ? prev.dir === 'asc' ? { field, dir: 'desc' } : { field: null, dir: 'asc' }
+      : { field, dir: 'asc' }
+    )
+  }
+
+  const sortedAdvance = useMemo(
+    () => applySort(filteredAdvance, advSort, p => getAdvanceAmt(p), p => p.advanceStatus || 'unpaid'),
+    [filteredAdvance, advSort]
+  )
+  const sortedSalary = useMemo(
+    () => applySort(filteredSalary, salSort, p => p.remaining || 0, p => p.salaryStatus || 'unpaid'),
+    [filteredSalary, salSort]
+  )
+  const sortedAll = useMemo(
+    () => applySort(filteredAll, allSort, p => p.remaining || 0, p => overallStatus(p)),
+    [filteredAll, allSort]
+  )
+
+  function SortTh({ label, field, sort, onToggle, style }) {
+    const active = sort.field === field
+    return (
+      <th onClick={() => onToggle(field)} style={{
+        background: 'var(--surface, #fff)', cursor: 'pointer', userSelect: 'none',
+        color: active ? 'var(--primary, #3b82f6)' : undefined,
+        borderBottom: active ? '2px solid var(--primary, #3b82f6)' : undefined,
+        whiteSpace: 'nowrap', ...style
+      }}>
+        {label} {active ? (sort.dir === 'asc' ? '▲' : '▼') : <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>⇅</span>}
+      </th>
+    )
   }
 
   function StatusButtons({ status, onSet }) {
@@ -132,8 +202,13 @@ export default function Payments() {
         <tr style={{ background: '#f9fafb' }}>
           <td style={{ fontWeight: 600 }}>{p.empName}</td>
           <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{p.department}</td>
+          <td style={{ fontSize: 11 }}>
+            {p.workFormat === 'удалённо' ? <span style={{ color: '#7c3aed', fontWeight: 600 }}>🏠 Удалённо</span>
+              : p.workFormat === 'гибрид' ? <span style={{ color: '#0891b2', fontWeight: 600 }}>🔄 Гибрид</span>
+              : <span style={{ color: '#3b82f6', fontWeight: 600 }}>🏢 Офис</span>}
+          </td>
           <td colSpan={4} style={{ color: 'var(--text-muted)', fontSize: 12, fontStyle: 'italic' }}>Аванс не предусмотрен</td>
-          <td />
+          <td /><td />
         </tr>
       )
     }
@@ -144,10 +219,16 @@ export default function Payments() {
         <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{p.department}</td>
         {isAdvance && (
           <>
+            <td style={{ fontSize: 11 }}>
+              {p.workFormat === 'удалённо' ? <span style={{ color: '#7c3aed', fontWeight: 600 }}>🏠 Удалённо</span>
+                : p.workFormat === 'гибрид' ? <span style={{ color: '#0891b2', fontWeight: 600 }}>🔄 Гибрид</span>
+                : <span style={{ color: '#3b82f6', fontWeight: 600 }}>🏢 Офис</span>}
+            </td>
             <td className="money" style={{ fontWeight: 700 }}>{getAdvanceAmt(p) > 0 ? formatMoney(getAdvanceAmt(p)) : '—'}</td>
             <td className="money">{p.officialAdvance > 0 ? formatMoney(p.officialAdvance) : '—'}</td>
             <td className="money">{p.unofficialAdvance > 0 ? formatMoney(p.unofficialAdvance) : '—'}</td>
             <td className="money">{p.salaryOnAccount > 0 ? formatMoney(p.salaryOnAccount) : '—'}</td>
+            <td style={{ textAlign: 'center', fontWeight: 600, color: '#1d4ed8' }}>{p.ps.advanceDay}-е</td>
           </>
         )}
         {!isAdvance && (
@@ -172,7 +253,9 @@ export default function Payments() {
         )}
         <td className="money" style={{ fontWeight: 700, fontSize: 14 }}>
           {isAdvance
-            ? (amount > 0 ? formatMoney(amount) : '—')
+            ? (p.advanceStatus === 'paid'
+                ? <span style={{ color: '#059669', fontSize: 12 }}>✓ выплачено</span>
+                : (amount > 0 ? formatMoney(amount) : '—'))
             : (p.salaryStatus === 'paid' ? <span style={{ color: '#059669', fontSize: 12 }}>✓ выплачено</span> : (amount > 0 ? formatMoney(amount) : '—'))
           }
         </td>
@@ -305,13 +388,32 @@ export default function Payments() {
         </div>
       ) : tab === 'advance' ? (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10, gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => markAll('advanceStatus', 'paid')}>
-              Отметить всё выплаченным
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={() => markAll('advanceStatus', 'unpaid')}>
-              Сбросить
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select className="select" value={filterFormat} onChange={e => setFilterFormat(e.target.value)}>
+                <option value="">Все форматы</option>
+                <option value="офис">🏢 Офис</option>
+                <option value="удалённо">🏠 Удалённо</option>
+                <option value="гибрид">🔄 Гибрид</option>
+              </select>
+              <select className="select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                <option value="">Все статусы</option>
+                <option value="unpaid">Не выплачено</option>
+                <option value="partial">Частично</option>
+                <option value="paid">Выплачено</option>
+              </select>
+              {(filterFormat || filterStatus) && (
+                <button className="btn btn-secondary btn-sm" onClick={() => { setFilterFormat(''); setFilterStatus('') }}>✕ Сбросить</button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => markAll('advanceStatus', 'paid')}>
+                Отметить всё выплаченным
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={() => markAll('advanceStatus', 'unpaid')}>
+                Сбросить
+              </button>
+            </div>
           </div>
           <DualScrollTable topRef={advTopRef} botRef={advBotRef} onScrollTop={syncAdvTop} onScrollBot={syncAdvBot}>
             <table className="table">
@@ -319,25 +421,29 @@ export default function Payments() {
                 <tr>
                   <th style={{ background: 'var(--surface, #fff)' }}>ФИО</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Отдел</th>
+                  <SortTh label="Формат" field="format" sort={advSort} onToggle={f => toggleSort(advSort, setAdvSort, f)} />
                   <th style={{ background: 'var(--surface, #fff)' }}>Итог. аванс</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Офиц. аванс</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Второй аванс</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>В счёт з/п</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Итого к выплате</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Статус</th>
+                  <th style={{ background: 'var(--surface, #fff)' }}>День аванса</th>
+                  <SortTh label="Итого к выплате" field="amount" sort={advSort} onToggle={f => toggleSort(advSort, setAdvSort, f)} />
+                  <SortTh label="Статус" field="status" sort={advSort} onToggle={f => toggleSort(advSort, setAdvSort, f)} />
                 </tr>
               </thead>
               <tbody>
-                {payrollsForAdvance.map(p => <PaymentRow key={p.id} p={p} type="advance" />)}
+                {sortedAdvance.map(p => <PaymentRow key={p.id} p={p} type="advance" />)}
               </tbody>
               <tfoot>
                 <tr className="table-footer">
-                  <td colSpan={2}>Итого ({payrollsForAdvance.length})</td>
-                  <td className="money" style={{ fontWeight: 700 }}>{formatMoney(totalAdvances)}</td>
-                  <td className="money">{formatMoney(payrollsForAdvance.reduce((s, p) => s + (p.officialAdvance || 0), 0))}</td>
-                  <td className="money">{formatMoney(payrollsForAdvance.reduce((s, p) => s + (p.unofficialAdvance || 0), 0))}</td>
-                  <td className="money">{formatMoney(payrollsForAdvance.reduce((s, p) => s + (p.salaryOnAccount || 0), 0))}</td>
-                  <td className="money">{formatMoney(totalAdvances)}</td>
+                  <td colSpan={2}>Итого ({sortedAdvance.length})</td>
+                  <td />
+                  <td className="money" style={{ fontWeight: 700 }}>{formatMoney(sortedAdvance.reduce((s, p) => s + getAdvanceAmt(p), 0))}</td>
+                  <td className="money">{formatMoney(sortedAdvance.reduce((s, p) => s + (p.officialAdvance || 0), 0))}</td>
+                  <td className="money">{formatMoney(sortedAdvance.reduce((s, p) => s + (p.unofficialAdvance || 0), 0))}</td>
+                  <td className="money">{formatMoney(sortedAdvance.reduce((s, p) => s + (p.salaryOnAccount || 0), 0))}</td>
+                  <td />
+                  <td className="money">{formatMoney(sortedAdvance.reduce((s, p) => s + getAdvanceAmt(p), 0))}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -346,9 +452,28 @@ export default function Payments() {
         </div>
       ) : tab === 'salary' ? (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10, gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => markAll('salaryStatus', 'paid')}>Отметить всё выплаченным</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => markAll('salaryStatus', 'unpaid')}>Сбросить</button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select className="select" value={filterFormat} onChange={e => setFilterFormat(e.target.value)}>
+                <option value="">Все форматы</option>
+                <option value="офис">🏢 Офис</option>
+                <option value="удалённо">🏠 Удалённо</option>
+                <option value="гибрид">🔄 Гибрид</option>
+              </select>
+              <select className="select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                <option value="">Все статусы</option>
+                <option value="unpaid">Не выплачено</option>
+                <option value="partial">Частично</option>
+                <option value="paid">Выплачено</option>
+              </select>
+              {(filterFormat || filterStatus) && (
+                <button className="btn btn-secondary btn-sm" onClick={() => { setFilterFormat(''); setFilterStatus('') }}>✕ Сбросить</button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => markAll('salaryStatus', 'paid')}>Отметить всё выплаченным</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => markAll('salaryStatus', 'unpaid')}>Сбросить</button>
+            </div>
           </div>
           <DualScrollTable topRef={salTopRef} botRef={salBotRef} onScrollTop={syncSalTop} onScrollBot={syncSalBot}>
             <table className="table">
@@ -356,30 +481,30 @@ export default function Payments() {
                 <tr>
                   <th style={{ background: 'var(--surface, #fff)' }}>ФИО</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Отдел</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Формат</th>
+                  <SortTh label="Формат" field="format" sort={salSort} onToggle={f => toggleSort(salSort, setSalSort, f)} />
                   <th style={{ background: 'var(--surface, #fff)' }}>Начислено</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Итого выдано</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>Схема</th>
                   <th style={{ background: 'var(--surface, #fff)' }}>День з/п</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Остаток к выплате</th>
-                  <th style={{ background: 'var(--surface, #fff)' }}>Статус</th>
+                  <SortTh label="Остаток к выплате" field="amount" sort={salSort} onToggle={f => toggleSort(salSort, setSalSort, f)} />
+                  <SortTh label="Статус" field="status" sort={salSort} onToggle={f => toggleSort(salSort, setSalSort, f)} />
                 </tr>
               </thead>
               <tbody>
-                {payrolls.map(p => (
+                {sortedSalary.map(p => (
                   <PaymentRow key={p.id} p={p} type="salary" />
                 ))}
               </tbody>
               <tfoot>
                 <tr className="table-footer">
-                  <td colSpan={3}>Итого</td>
-                  <td className="money">{formatMoney(payrolls.reduce((s, p) => s + (p.totalEarned || 0), 0))}</td>
-                  <td className="money">{formatMoney(payrolls.reduce((s, p) =>
+                  <td colSpan={3}>Итого ({sortedSalary.length})</td>
+                  <td className="money">{formatMoney(sortedSalary.reduce((s, p) => s + (p.totalEarned || 0), 0))}</td>
+                  <td className="money">{formatMoney(sortedSalary.reduce((s, p) =>
                     s + (p.salaryStatus === 'paid'
                       ? (p.totalDeducted || 0) + (p.remaining || 0)
                       : (p.totalDeducted || 0)), 0))}</td>
                   <td colSpan={2} />
-                  <td className="money">{formatMoney(payrolls.filter(p => p.salaryStatus !== 'paid').reduce((s, p) => s + (p.remaining || 0), 0))}</td>
+                  <td className="money">{formatMoney(sortedSalary.filter(p => p.salaryStatus !== 'paid').reduce((s, p) => s + (p.remaining || 0), 0))}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -388,6 +513,24 @@ export default function Payments() {
         </div>
       ) : (
         /* Сводная таблица */
+        <div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <select className="select" value={filterFormat} onChange={e => setFilterFormat(e.target.value)}>
+            <option value="">Все форматы</option>
+            <option value="офис">🏢 Офис</option>
+            <option value="удалённо">🏠 Удалённо</option>
+            <option value="гибрид">🔄 Гибрид</option>
+          </select>
+          <select className="select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+            <option value="">Все статусы</option>
+            <option value="unpaid">Не выплачено</option>
+            <option value="partial">Частично</option>
+            <option value="paid">Выплачено</option>
+          </select>
+          {(filterFormat || filterStatus) && (
+            <button className="btn btn-secondary btn-sm" onClick={() => { setFilterFormat(''); setFilterStatus('') }}>✕ Сбросить</button>
+          )}
+        </div>
         <DualScrollTable topRef={allTopRef} botRef={allBotRef} onScrollTop={syncAllTop} onScrollBot={syncAllBot} minWidth={1200}>
           <table className="table" style={{ minWidth: 1200, fontSize: 12 }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
@@ -403,13 +546,13 @@ export default function Payments() {
                 <th style={{ background: 'var(--surface, #fff)' }}>Сумма з/п</th>
                 <th style={{ background: 'var(--surface, #fff)' }}>Статус з/п</th>
                 <th style={{ background: 'var(--surface, #fff)' }}>Итого выдано</th>
-                <th style={{ background: 'var(--surface, #fff)' }}>Остаток</th>
-                <th style={{ background: 'var(--surface, #fff)' }}>Общий статус</th>
+                <SortTh label="Остаток" field="amount" sort={allSort} onToggle={f => toggleSort(allSort, setAllSort, f)} />
+                <SortTh label="Общий статус" field="status" sort={allSort} onToggle={f => toggleSort(allSort, setAllSort, f)} />
                 <th style={{ background: 'var(--surface, #fff)' }}>Комментарий</th>
               </tr>
             </thead>
             <tbody>
-              {payrolls.map(p => {
+              {sortedAll.map(p => {
                 const hasAdv = p.ps.hasAdvance
                 const advAmt = (p.officialAdvance || 0) + (p.unofficialAdvance || 0) + (p.salaryOnAccount || 0)
                 const os = overallStatus(p)
@@ -460,24 +603,25 @@ export default function Payments() {
             <tfoot>
               <tr className="table-footer">
                 {/* 14 cols: ФИО Отдел Схема ДеньАв | СуммаАв | СтатусАв | ДеньЗп | ОфЧасть | СуммаЗп | СтатусЗп | ИтогоВыдано | Остаток | ОбщийСтатус | Комментарий */}
-                <td colSpan={4}>Итого ({payrolls.length})</td>
-                <td className="money">{formatMoney(totalAdvances)}</td>
+                <td colSpan={4}>Итого ({sortedAll.length})</td>
+                <td className="money">{formatMoney(sortedAll.reduce((s, p) => s + getAdvanceAmt(p), 0))}</td>
                 <td />
                 <td />
                 <td />
-                <td className="money">{formatMoney(payrolls.reduce((s, p) => s + (p.totalEarned || 0), 0))}</td>
+                <td className="money">{formatMoney(sortedAll.reduce((s, p) => s + (p.totalEarned || 0), 0))}</td>
                 <td />
-                <td className="money">{formatMoney(payrolls.reduce((s, p) =>
+                <td className="money">{formatMoney(sortedAll.reduce((s, p) =>
                   s + (p.salaryStatus === 'paid'
                     ? (p.totalDeducted || 0) + (p.remaining || 0)
                     : (p.totalDeducted || 0)), 0))}</td>
-                <td className="money">{formatMoney(payrolls.filter(p => p.salaryStatus !== 'paid').reduce((s, p) => s + (p.remaining || 0), 0))}</td>
+                <td className="money">{formatMoney(sortedAll.filter(p => p.salaryStatus !== 'paid').reduce((s, p) => s + (p.remaining || 0), 0))}</td>
                 <td />
                 <td />
               </tr>
             </tfoot>
           </table>
         </DualScrollTable>
+        </div>
       )}
     </div>
   )
