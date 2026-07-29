@@ -436,14 +436,14 @@ export default function Payments() {
               </tbody>
               <tfoot>
                 <tr className="table-footer">
-                  <td colSpan={2}>Итого ({payrollsForAdvance.length})</td>
+                  <td colSpan={2}>Итого ({sortedAdvance.length})</td>
                   <td />
-                  <td className="money" style={{ fontWeight: 700 }}>{formatMoney(totalAdvances)}</td>
-                  <td className="money">{formatMoney(payrollsForAdvance.reduce((s, p) => s + (p.officialAdvance || 0), 0))}</td>
-                  <td className="money">{formatMoney(payrollsForAdvance.reduce((s, p) => s + (p.unofficialAdvance || 0), 0))}</td>
-                  <td className="money">{formatMoney(payrollsForAdvance.reduce((s, p) => s + (p.salaryOnAccount || 0), 0))}</td>
+                  <td className="money" style={{ fontWeight: 700 }}>{formatMoney(sortedAdvance.reduce((s, p) => s + getAdvanceAmt(p), 0))}</td>
+                  <td className="money">{formatMoney(sortedAdvance.reduce((s, p) => s + (p.officialAdvance || 0), 0))}</td>
+                  <td className="money">{formatMoney(sortedAdvance.reduce((s, p) => s + (p.unofficialAdvance || 0), 0))}</td>
+                  <td className="money">{formatMoney(sortedAdvance.reduce((s, p) => s + (p.salaryOnAccount || 0), 0))}</td>
                   <td />
-                  <td className="money">{formatMoney(totalAdvances)}</td>
+                  <td className="money">{formatMoney(sortedAdvance.reduce((s, p) => s + getAdvanceAmt(p), 0))}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -497,14 +497,14 @@ export default function Payments() {
               </tbody>
               <tfoot>
                 <tr className="table-footer">
-                  <td colSpan={3}>Итого</td>
-                  <td className="money">{formatMoney(payrolls.reduce((s, p) => s + (p.totalEarned || 0), 0))}</td>
-                  <td className="money">{formatMoney(payrolls.reduce((s, p) =>
+                  <td colSpan={3}>Итого ({sortedSalary.length})</td>
+                  <td className="money">{formatMoney(sortedSalary.reduce((s, p) => s + (p.totalEarned || 0), 0))}</td>
+                  <td className="money">{formatMoney(sortedSalary.reduce((s, p) =>
                     s + (p.salaryStatus === 'paid'
                       ? (p.totalDeducted || 0) + (p.remaining || 0)
                       : (p.totalDeducted || 0)), 0))}</td>
                   <td colSpan={2} />
-                  <td className="money">{formatMoney(payrolls.filter(p => p.salaryStatus !== 'paid').reduce((s, p) => s + (p.remaining || 0), 0))}</td>
+                  <td className="money">{formatMoney(sortedSalary.filter(p => p.salaryStatus !== 'paid').reduce((s, p) => s + (p.remaining || 0), 0))}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -603,18 +603,18 @@ export default function Payments() {
             <tfoot>
               <tr className="table-footer">
                 {/* 14 cols: ФИО Отдел Схема ДеньАв | СуммаАв | СтатусАв | ДеньЗп | ОфЧасть | СуммаЗп | СтатусЗп | ИтогоВыдано | Остаток | ОбщийСтатус | Комментарий */}
-                <td colSpan={4}>Итого ({payrolls.length})</td>
-                <td className="money">{formatMoney(totalAdvances)}</td>
+                <td colSpan={4}>Итого ({sortedAll.length})</td>
+                <td className="money">{formatMoney(sortedAll.reduce((s, p) => s + getAdvanceAmt(p), 0))}</td>
                 <td />
                 <td />
                 <td />
-                <td className="money">{formatMoney(payrolls.reduce((s, p) => s + (p.totalEarned || 0), 0))}</td>
+                <td className="money">{formatMoney(sortedAll.reduce((s, p) => s + (p.totalEarned || 0), 0))}</td>
                 <td />
-                <td className="money">{formatMoney(payrolls.reduce((s, p) =>
+                <td className="money">{formatMoney(sortedAll.reduce((s, p) =>
                   s + (p.salaryStatus === 'paid'
                     ? (p.totalDeducted || 0) + (p.remaining || 0)
                     : (p.totalDeducted || 0)), 0))}</td>
-                <td className="money">{formatMoney(payrolls.filter(p => p.salaryStatus !== 'paid').reduce((s, p) => s + (p.remaining || 0), 0))}</td>
+                <td className="money">{formatMoney(sortedAll.filter(p => p.salaryStatus !== 'paid').reduce((s, p) => s + (p.remaining || 0), 0))}</td>
                 <td />
                 <td />
               </tr>
