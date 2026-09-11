@@ -132,6 +132,24 @@ function reducer(state, action) {
       )
       return { ...state, employees }
     }
+    case 'UPDATE_DISMISS_DATE': {
+      const { id, date } = action.payload
+      const employees = state.employees.map(e => {
+        if (e.id !== id) return e
+        const history = [...(e.employmentHistory || [])]
+        let updated = false
+        for (let i = history.length - 1; i >= 0; i--) {
+          if (history[i].type === 'dismissed') {
+            history[i] = { ...history[i], date }
+            updated = true
+            break
+          }
+        }
+        if (!updated) history.push({ type: 'dismissed', date })
+        return { ...e, dismissDate: date, employmentHistory: history }
+      })
+      return { ...state, employees }
+    }
     case 'RESTORE_EMPLOYEE': {
       const id = action.payload.id ?? action.payload
       const date = action.payload.date ?? new Date().toISOString().slice(0, 10)

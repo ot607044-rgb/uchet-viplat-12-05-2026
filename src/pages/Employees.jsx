@@ -597,6 +597,8 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
   const [dismissDate, setDismissDate] = useState(new Date().toISOString().slice(0, 10))
   const [showDismissForm, setShowDismissForm] = useState(false)
   const [restoreDate, setRestoreDate] = useState(new Date().toISOString().slice(0, 10))
+  const [editingDismissDate, setEditingDismissDate] = useState(false)
+  const [editDismissDateValue, setEditDismissDateValue] = useState('')
 
   const liveEmp = state.employees.find(e => e.id === employee.id) || employee
 
@@ -1020,10 +1022,43 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
                 <>
                   <div style={{ padding: 16, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca', marginBottom: 20 }}>
                     <div className="form-label" style={{ color: '#dc2626', marginBottom: 6 }}>Сотрудник уволен</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 13, color: '#374151' }}>Дата увольнения:</span>
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{formatDate(liveEmp.dismissDate) || '—'}</span>
-                    </div>
+                    {editingDismissDate ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, color: '#374151' }}>Дата увольнения:</span>
+                        <input
+                          type="date"
+                          className="input"
+                          value={editDismissDateValue}
+                          onChange={e => setEditDismissDateValue(e.target.value)}
+                          style={{ maxWidth: 170 }}
+                        />
+                        <button
+                          className="btn btn-success btn-sm"
+                          disabled={!editDismissDateValue}
+                          onClick={() => {
+                            dispatch({ type: 'UPDATE_DISMISS_DATE', payload: { id: liveEmp.id, date: editDismissDateValue } })
+                            setEditingDismissDate(false)
+                          }}
+                        >
+                          <Save size={13} /> Сохранить
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setEditingDismissDate(false)}>Отмена</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 13, color: '#374151' }}>Дата увольнения:</span>
+                        <span style={{ fontWeight: 600, fontSize: 14 }}>{formatDate(liveEmp.dismissDate) || '—'}</span>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setEditDismissDateValue(liveEmp.dismissDate || new Date().toISOString().slice(0, 10))
+                            setEditingDismissDate(true)
+                          }}
+                        >
+                          <Edit2 size={13} /> Изменить дату увольнения
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
