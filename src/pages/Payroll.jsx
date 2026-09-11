@@ -284,7 +284,7 @@ export default function Payroll() {
 
   function applyRegistry() {
     if (!registry) return
-    const field = registry.payType // 'officialSalaryPart' | 'vacationPay' | 'officialAdvance'
+    const field = registry.payType // 'officialSalaryPart' | 'vacationPay' | 'officialAdvance' | 'sickPay'
     registry.rows.forEach(r => {
       if (r.selected && r.matchedId) {
         dispatch({ type: 'UPDATE_PAYROLL_FIELD', payload: { id: r.matchedId, field, value: r.amount } })
@@ -699,6 +699,7 @@ export default function Payroll() {
                   { key: 'officialSalaryPart', label: '💼 Офиц. часть зарплаты', color: '#0891b2' },
                   { key: 'vacationPay',         label: '🌴 Отпускные',            color: '#059669' },
                   { key: 'officialAdvance',     label: '📅 Официальный аванс',    color: '#7c3aed' },
+                  { key: 'sickPay',             label: '🤒 Больничные',           color: '#dc2626' },
                 ].map(({ key, label, color }) => (
                   <button key={key} onClick={() => setRegistry(r => ({ ...r, payType: key }))}
                     style={{
