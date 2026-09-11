@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react'
-import { generateId, calcPayroll, calcUnofficialAdvance } from '../utils/helpers'
+import { generateId, calcPayroll, calcUnofficialAdvance, getCurrentPeriod } from '../utils/helpers'
 
 const AppContext = createContext(null)
 
@@ -95,6 +95,8 @@ function reducer(state, action) {
       return { ...state, employees: [...state.employees, emp] }
     }
     case 'UPDATE_EMPLOYEE': {
+      const prevEmp = state.employees.find(e => e.id === action.payload.id)
+      let updatedEmp = null
       const employees = state.employees.map(e => {
         if (e.id !== action.payload.id) return e
         const updated = { ...e, ...action.payload }
@@ -108,9 +110,29 @@ function reducer(state, action) {
           updated.salaryHistory = [...(e.salaryHistory || []),
             { date: new Date().toISOString().slice(0, 10), from: e.salary, to: action.payload.salary }]
         }
+        updatedEmp = updated
         return updated
       })
-      return { ...state, employees }
+      // Синхронизируем отдел/руководителя в уже созданных начислениях текущего и будущих месяцев,
+      // чтобы отчёты по отделам/руководителям не отставали от карточки сотрудника
+      let payrolls = state.payrolls
+      if (prevEmp && updatedEmp) {
+        const deptChanged = action.payload.department !== undefined && action.payload.department !== prevEmp.department
+        const mgrChanged = action.payload.manager !== undefined && action.payload.manager !== prevEmp.manager
+        if (deptChanged || mgrChanged) {
+          const { month: curMonth, year: curYear } = getCurrentPeriod()
+          payrolls = state.payrolls.map(p => {
+            if (p.employeeId !== action.payload.id) return p
+            if (p.year < curYear || (p.year === curYear && p.month < curMonth)) return p
+            return {
+              ...p,
+              department: deptChanged ? updatedEmp.department : p.department,
+              manager: mgrChanged ? updatedEmp.manager : p.manager
+            }
+          })
+        }
+      }
+      return { ...state, employees, payrolls }
     }
     case 'DELETE_EMPLOYEE': {
       return {

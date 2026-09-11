@@ -223,7 +223,7 @@ function EmployeeEditForm({ empId, onDone }) {
   }))
   const [errors, setErrors] = useState({})
 
-  const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))]
+  const depts = [...new Set([...state.departments.map(d => d.name), ...state.employees.map(e => e.department).filter(Boolean)])]
   const managers = [...new Set(state.employees.filter(e => e.status !== 'dismissed').map(e => e.fullName).filter(Boolean))]
   const positions = [...new Set(state.employees.map(e => e.position).filter(Boolean))]
   const cooperationFormats = [...BASE_COOPERATION_FORMATS, ...(state.settings?.cooperationFormats || []).filter(v => !BASE_COOPERATION_FORMATS.includes(v))]
@@ -602,7 +602,7 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
 
   const liveEmp = state.employees.find(e => e.id === employee.id) || employee
 
-  const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))]
+  const depts = [...new Set([...state.departments.map(d => d.name), ...state.employees.map(e => e.department).filter(Boolean)])]
   const managers = [...new Set(state.employees.filter(e => e.status !== 'dismissed').map(e => e.fullName).filter(Boolean))]
   const positions = [...new Set(state.employees.map(e => e.position).filter(Boolean))]
   const cooperationFormats = [...BASE_COOPERATION_FORMATS, ...(state.settings?.cooperationFormats || []).filter(v => !BASE_COOPERATION_FORMATS.includes(v))]
@@ -1136,7 +1136,7 @@ export default function Employees({ onNavigate }) {
     }).sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'ru'))
   }, [state.employees, search, filterDept, filterManager, filterStatus])
 
-  const depts = useMemo(() => [...new Set(state.employees.map(e => e.department).filter(Boolean))], [state.employees])
+  const depts = useMemo(() => [...new Set([...state.departments.map(d => d.name), ...state.employees.map(e => e.department).filter(Boolean)])], [state.departments, state.employees])
   const managers = useMemo(() => [...new Set(state.employees.map(e => e.manager).filter(Boolean))], [state.employees])
 
   function handleDismiss(date) {

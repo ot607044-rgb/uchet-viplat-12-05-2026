@@ -29,8 +29,9 @@ export default function Departments() {
 
     return allDepts.map(dept => {
       const employees = state.employees.filter(e => e.department === dept && e.status === 'active')
+      const employeeIds = new Set(state.employees.filter(e => e.department === dept).map(e => e.id))
       const payrolls = state.payrolls.filter(p =>
-        p.department === dept && p.month === month && p.year === year
+        employeeIds.has(p.employeeId) && p.month === month && p.year === year
       )
       const fot = payrolls.reduce((s, p) => s + (p.totalEarned || 0), 0)
       const remaining = payrolls.reduce((s, p) => s + (p.remaining || 0), 0)
@@ -47,8 +48,9 @@ export default function Departments() {
 
     return allMgrs.map(mgr => {
       const subordinates = state.employees.filter(e => e.manager === mgr && e.status === 'active')
+      const subordinateIds = new Set(state.employees.filter(e => e.manager === mgr).map(e => e.id))
       const payrolls = state.payrolls.filter(p =>
-        p.manager === mgr && p.month === month && p.year === year
+        subordinateIds.has(p.employeeId) && p.month === month && p.year === year
       )
       const fot = payrolls.reduce((s, p) => s + (p.totalEarned || 0), 0)
       return { mgr, subordinateCount: subordinates.length, fot }
