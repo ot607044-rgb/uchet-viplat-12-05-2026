@@ -194,8 +194,8 @@ export default function Payroll() {
     return state.employees.filter(e => {
       if (existingIds.has(e.id)) return false
       if (e.hireDate && new Date(e.hireDate) > new Date(year, month, 0)) return false
-      // Уволенный до начала месяца — не включаем
-      if (e.status === 'dismissed' && e.dismissDate && new Date(e.dismissDate) < firstDayOfMonth) return false
+      // Уволенный до начала месяца (или без указанной даты увольнения) — не включаем
+      if (e.status === 'dismissed' && (!e.dismissDate || new Date(e.dismissDate) < firstDayOfMonth)) return false
       return true
     })
   }, [state.employees, payrollRows, year, month])

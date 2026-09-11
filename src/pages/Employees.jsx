@@ -278,10 +278,20 @@ function EmployeeEditForm({ empId, onDone }) {
         </div>
         <div>
           <div className="form-label">Статус</div>
-          <select className="select" value={form.status} onChange={e => set('status', e.target.value)}>
+          <select className="select" value={form.status} onChange={e => {
+            const value = e.target.value
+            setForm(f => ({
+              ...f,
+              status: value,
+              dismissDate: value === 'dismissed' ? (f.dismissDate || new Date().toISOString().slice(0, 10)) : ''
+            }))
+          }}>
             <option value="active">Работает</option>
             <option value="dismissed">Уволен</option>
           </select>
+          {form.status === 'dismissed' && (
+            <input type="date" className="input" style={{ marginTop: 6 }} value={form.dismissDate || ''} onChange={e => set('dismissDate', e.target.value)} />
+          )}
         </div>
       </div>
 
@@ -602,6 +612,7 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
     hireDate: emp.hireDate || '',
     salary: emp.salary ?? '',
     status: emp.status || 'active',
+    dismissDate: emp.dismissDate || '',
     department: emp.department || '',
     position: emp.position || '',
     manager: emp.manager || '',
@@ -686,10 +697,21 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
                 </div>
                 <div>
                   <div className="form-label">Статус</div>
-                  <select className="select" value={f.status} onChange={e => upd('status', e.target.value)}>
+                  <select className="select" value={f.status} onChange={e => {
+                    const value = e.target.value
+                    setF(prev => ({
+                      ...prev,
+                      status: value,
+                      dismissDate: value === 'dismissed' ? (prev.dismissDate || new Date().toISOString().slice(0, 10)) : ''
+                    }))
+                    setDirty(true)
+                  }}>
                     <option value="active">Работает</option>
                     <option value="dismissed">Уволен</option>
                   </select>
+                  {f.status === 'dismissed' && (
+                    <input type="date" className="input" style={{ marginTop: 6 }} value={f.dismissDate || ''} onChange={e => upd('dismissDate', e.target.value)} />
+                  )}
                 </div>
                 <div>
                   <div className="form-label">Оклад (₽)</div>
