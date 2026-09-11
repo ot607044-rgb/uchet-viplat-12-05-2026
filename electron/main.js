@@ -202,10 +202,10 @@ ipcMain.handle('import-json', async () => {
   }
 })
 
-ipcMain.handle('export-pdf', async (_, { html, filename }) => {
+ipcMain.handle('export-pdf', async (_, { html, filename, title, landscape }) => {
   const win = BrowserWindow.getFocusedWindow()
   const { filePath } = await dialog.showSaveDialog(win, {
-    title: 'Сохранить расчётный листок',
+    title: title || 'Сохранить расчётный листок',
     defaultPath: filename || 'payslip.pdf',
     filters: [{ name: 'PDF', extensions: ['pdf'] }]
   })
@@ -227,7 +227,8 @@ ipcMain.handle('export-pdf', async (_, { html, filename }) => {
     const pdfBuffer = await pdfWin.webContents.printToPDF({
       pageSize: 'A4',
       printBackground: true,
-      marginsType: 0
+      marginsType: 0,
+      landscape: !!landscape
     })
     fs.writeFileSync(filePath, pdfBuffer)
     pdfWin.close()

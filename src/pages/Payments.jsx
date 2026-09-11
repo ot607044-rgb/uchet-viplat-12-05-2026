@@ -1,7 +1,106 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react'
-import { CheckCircle, Circle, ChevronLeft, ChevronRight, CreditCard, AlertCircle } from 'lucide-react'
+import { CheckCircle, Circle, ChevronLeft, ChevronRight, CreditCard, AlertCircle, Printer } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { formatMoney, monthName, getCurrentPeriod, formatDate, getEmpPaymentSettings } from '../utils/helpers'
+
+const WORK_FORMAT_LABEL = { 'офис': 'Офис', 'удалённо': 'Удалённо', 'гибрид': 'Гибрид' }
+const STATUS_LABEL = { unpaid: 'Не выплачено', partial: 'Частично', paid: 'Выплачено' }
+const ADV_COLS = ['ФИО', 'Отдел', 'Формат', 'Итог. аванс', 'Офиц. аванс', 'Второй аванс', 'В счёт з/п', 'День аванса', 'Итого к выплате', 'Статус']
+const SAL_COLS = ['ФИО', 'Отдел', 'Формат', 'Начислено', 'Итого выдано', 'Схема', 'День з/п', 'Остаток к выплате', 'Статус']
+const ALL_COLS = ['ФИО', 'Отдел', 'Схема выплаты', 'День аванса', 'Сумма аванса', 'Статус аванса', 'День з/п', 'Оф. часть ЗП', 'Сумма з/п', 'Статус з/п', 'Итого выдано', 'Остаток', 'Общий статус', 'Комментарий']
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+function cell(v, extraStyle = '') { return `<td style="${extraStyle}">${v}</td>` }
+function moneyCell(v, extraStyle = '') { return `<td class="money" style="${extraStyle}">${v}</td>` }
+
+function buildAdvanceRowsHtml(rows, getAdvanceAmt) {
+  return rows.map(p => {
+    if (!p.ps.hasAdvance) {
+      return `<tr>${cell(escapeHtml(p.empName), 'font-weight:600')}${cell(escapeHtml(p.department || '—'))}${cell(escapeHtml(WORK_FORMAT_LABEL[p.workFormat] || p.workFormat))}<td colspan="4" style="color:#999;font-style:italic">Аванс не предусмотрен</td>${cell(`${p.ps.advanceDay}-е`, 'text-align:center')}${moneyCell('—')}${cell(STATUS_LABEL[p.advanceStatus || 'unpaid'])}</tr>`
+    }
+    const amt = getAdvanceAmt(p)
+    return `<tr>${cell(escapeHtml(p.empName), 'font-weight:600')}${cell(escapeHtml(p.department || '—'))}${cell(escapeHtml(WORK_FORMAT_LABEL[p.workFormat] || p.workFormat))}${moneyCell(amt > 0 ? formatMoney(amt) : '—', 'font-weight:700')}${moneyCell(p.officialAdvance > 0 ? formatMoney(p.officialAdvance) : '—')}${moneyCell(p.unofficialAdvance > 0 ? formatMoney(p.unofficialAdvance) : '—')}${moneyCell(p.salaryOnAccount > 0 ? formatMoney(p.salaryOnAccount) : '—')}${cell(`${p.ps.advanceDay}-е`, 'text-align:center')}${moneyCell(p.advanceStatus === 'paid' ? 'Выплачено' : (amt > 0 ? formatMoney(amt) : '—'), 'font-weight:700')}${cell(STATUS_LABEL[p.advanceStatus || 'unpaid'])}</tr>`
+  }).join('')
+}
+function buildAdvanceFooterHtml(rows, getAdvanceAmt) {
+  const totalItog = rows.reduce((s, p) => s + getAdvanceAmt(p), 0)
+  const totalOfficial = rows.reduce((s, p) => s + (p.officialAdvance || 0), 0)
+  const totalUnofficial = rows.reduce((s, p) => s + (p.unofficialAdvance || 0), 0)
+  const totalOnAccount = rows.reduce((s, p) => s + (p.salaryOnAccount || 0), 0)
+  return `<tr class="total-row"><td colspan="2">Итого (${rows.length})</td><td></td>${moneyCell(formatMoney(totalItog))}${moneyCell(formatMoney(totalOfficial))}${moneyCell(formatMoney(totalUnofficial))}${moneyCell(formatMoney(totalOnAccount))}<td></td>${moneyCell(formatMoney(totalItog))}<td></td></tr>`
+}
+
+function buildSalaryRowsHtml(rows, SCHEME_LABELS) {
+  return rows.map(p => {
+    const issuedAmt = p.salaryStatus === 'paid' ? (p.totalDeducted || 0) + (p.remaining || 0) : (p.totalDeducted || 0)
+    return `<tr>${cell(escapeHtml(p.empName), 'font-weight:600')}${cell(escapeHtml(p.department || '—'))}${cell(escapeHtml(WORK_FORMAT_LABEL[p.workFormat] || p.workFormat))}${moneyCell(formatMoney(p.totalEarned))}${moneyCell(issuedAmt > 0 ? formatMoney(issuedAmt) : '—')}${cell(escapeHtml(SCHEME_LABELS[p.ps.paymentScheme] || '—'))}${cell(`${p.ps.salaryDay}-е`, 'text-align:center')}${moneyCell(p.salaryStatus === 'paid' ? 'Выплачено' : (p.remaining > 0 ? formatMoney(p.remaining) : '—'), 'font-weight:700')}${cell(STATUS_LABEL[p.salaryStatus || 'unpaid'])}</tr>`
+  }).join('')
+}
+function buildSalaryFooterHtml(rows) {
+  const totalEarned = rows.reduce((s, p) => s + (p.totalEarned || 0), 0)
+  const totalIssued = rows.reduce((s, p) => s + (p.salaryStatus === 'paid' ? (p.totalDeducted || 0) + (p.remaining || 0) : (p.totalDeducted || 0)), 0)
+  const totalRemainingUnpaid = rows.filter(p => p.salaryStatus !== 'paid').reduce((s, p) => s + (p.remaining || 0), 0)
+  return `<tr class="total-row"><td colspan="3">Итого (${rows.length})</td>${moneyCell(formatMoney(totalEarned))}${moneyCell(formatMoney(totalIssued))}<td colspan="2"></td>${moneyCell(formatMoney(totalRemainingUnpaid))}<td></td></tr>`
+}
+
+function buildAllRowsHtml(rows, getAdvanceAmt, overallStatus, SCHEME_LABELS) {
+  return rows.map(p => {
+    const hasAdv = p.ps.hasAdvance
+    const advAmt = (p.officialAdvance || 0) + (p.unofficialAdvance || 0) + (p.salaryOnAccount || 0)
+    const os = overallStatus(p)
+    const issuedAmt = p.salaryStatus === 'paid' ? (p.totalDeducted || 0) + (p.remaining || 0) : (p.totalDeducted || 0)
+    return `<tr>${cell(escapeHtml(p.empName), 'font-weight:600')}${cell(escapeHtml(p.department || '—'))}${cell(escapeHtml(SCHEME_LABELS[p.ps.paymentScheme] || '—'))}${cell(hasAdv ? `${p.ps.advanceDay}-е` : 'нет', 'text-align:center')}${moneyCell(hasAdv ? (advAmt > 0 ? formatMoney(advAmt) : '—') : 'нет аванса')}${cell(hasAdv ? STATUS_LABEL[p.advanceStatus || 'unpaid'] : '—')}${cell(`${p.ps.salaryDay}-е`, 'text-align:center')}${moneyCell(p.officialSalaryPart > 0 ? formatMoney(p.officialSalaryPart) : '—')}${moneyCell(formatMoney(p.totalEarned))}${cell(STATUS_LABEL[p.salaryStatus || 'unpaid'])}${moneyCell(issuedAmt > 0 ? formatMoney(issuedAmt) : '—')}${moneyCell(p.salaryStatus === 'paid' ? 'Выплачено' : formatMoney(p.remaining), 'font-weight:700')}${cell(os === 'paid' ? 'Выплачено' : os === 'partial' ? 'Частично' : 'Не выплачено')}${cell(escapeHtml(p.ps.paymentComment || p.comment || '—'))}</tr>`
+  }).join('')
+}
+function buildAllFooterHtml(rows, getAdvanceAmt) {
+  const totalAdv = rows.reduce((s, p) => s + getAdvanceAmt(p), 0)
+  const totalEarned = rows.reduce((s, p) => s + (p.totalEarned || 0), 0)
+  const totalIssued = rows.reduce((s, p) => s + (p.salaryStatus === 'paid' ? (p.totalDeducted || 0) + (p.remaining || 0) : (p.totalDeducted || 0)), 0)
+  const totalRemainingUnpaid = rows.filter(p => p.salaryStatus !== 'paid').reduce((s, p) => s + (p.remaining || 0), 0)
+  return `<tr class="total-row"><td colspan="4">Итого (${rows.length})</td>${moneyCell(formatMoney(totalAdv))}<td></td><td></td><td></td>${moneyCell(formatMoney(totalEarned))}<td></td>${moneyCell(formatMoney(totalIssued))}${moneyCell(formatMoney(totalRemainingUnpaid))}<td></td><td></td></tr>`
+}
+
+function buildRegistryHTML({ companyName, reportTitle, periodLabel, filterNote, columns, bodyHtml, footerHtml, generatedAt }) {
+  const thead = columns.map(c => `<th>${escapeHtml(c)}</th>`).join('')
+  return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #111; margin: 0; padding: 28px 32px; background: #fff; }
+  .company { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
+  h1 { font-size: 20px; font-weight: 800; margin: 2px 0; letter-spacing: -0.3px; }
+  .meta { font-size: 12px; color: #555; margin-bottom: 4px; }
+  .filter-note { font-size: 11px; color: #7c3aed; background: #f5f3ff; display: inline-block; padding: 3px 10px; border-radius: 20px; margin-top: 4px; }
+  .header { border-bottom: 1.5px solid #111; padding-bottom: 12px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  th, td { border: 1px solid #e5e7eb; padding: 5px 7px; text-align: left; }
+  th { background: #f8f9fb; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.03em; color: #555; }
+  td.money { text-align: right; font-family: 'Consolas', monospace; }
+  tr:nth-child(even) td { background: #fbfbfd; }
+  .total-row td { font-weight: 800; background: #f0fdf4 !important; border-top: 1.5px solid #111; }
+  .footer { margin-top: 14px; font-size: 9px; color: #aaa; text-align: right; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="company">${escapeHtml(companyName || 'Компания')}</div>
+    <h1>${escapeHtml(reportTitle)}</h1>
+    <div class="meta">${escapeHtml(periodLabel)}</div>
+    ${filterNote ? `<div class="filter-note">${escapeHtml(filterNote)}</div>` : ''}
+  </div>
+  <table>
+    <thead><tr>${thead}</tr></thead>
+    <tbody>${bodyHtml}</tbody>
+    <tfoot>${footerHtml}</tfoot>
+  </table>
+  <div class="footer">Сформировано: ${escapeHtml(generatedAt)}</div>
+</body>
+</html>`
+}
 
 export default function Payments() {
   const { state, dispatch } = useApp()
@@ -14,6 +113,7 @@ export default function Payments() {
   const [allSort, setAllSort] = useState({ field: null, dir: 'asc' })
   const [filterFormat, setFilterFormat] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [showFilterChoice, setShowFilterChoice] = useState(false)
 
   // Sync horizontal scrollbars (top mirror ↔ bottom table)
   const advTopRef = useRef(null); const advBotRef = useRef(null)
@@ -155,6 +255,64 @@ export default function Payments() {
     () => applySort(filteredAll, allSort, p => p.remaining || 0, p => overallStatus(p)),
     [filteredAll, allSort]
   )
+
+  function getTabRegistryMeta() {
+    if (tab === 'advance') return {
+      key: 'advance', title: 'Реестр авансов',
+      full: applySort(payrollsForAdvance, advSort, p => getAdvanceAmt(p), p => p.advanceStatus || 'unpaid'),
+      filtered: sortedAdvance, columns: ADV_COLS,
+      buildRows: rows => buildAdvanceRowsHtml(rows, getAdvanceAmt),
+      buildFooter: rows => buildAdvanceFooterHtml(rows, getAdvanceAmt)
+    }
+    if (tab === 'salary') return {
+      key: 'salary', title: 'Реестр зарплаты',
+      full: applySort(payrolls, salSort, p => p.remaining || 0, p => p.salaryStatus || 'unpaid'),
+      filtered: sortedSalary, columns: SAL_COLS,
+      buildRows: rows => buildSalaryRowsHtml(rows, SCHEME_LABELS),
+      buildFooter: rows => buildSalaryFooterHtml(rows)
+    }
+    return {
+      key: 'all', title: 'Сводный реестр выплат',
+      full: applySort(payrolls, allSort, p => p.remaining || 0, p => overallStatus(p)),
+      filtered: sortedAll, columns: ALL_COLS,
+      buildRows: rows => buildAllRowsHtml(rows, getAdvanceAmt, overallStatus, SCHEME_LABELS),
+      buildFooter: rows => buildAllFooterHtml(rows, getAdvanceAmt)
+    }
+  }
+
+  function filterNoteText() {
+    const parts = []
+    if (filterFormat) parts.push(`Формат: ${WORK_FORMAT_LABEL[filterFormat] || filterFormat}`)
+    if (filterStatus) parts.push(`Статус: ${STATUS_LABEL[filterStatus] || filterStatus}`)
+    return parts.join(' · ')
+  }
+
+  async function exportRegistryPdf(useFiltered) {
+    setShowFilterChoice(false)
+    const meta = getTabRegistryMeta()
+    const rows = useFiltered ? meta.filtered : meta.full
+    const html = buildRegistryHTML({
+      companyName: state.settings?.companyName,
+      reportTitle: meta.title,
+      periodLabel: `${monthName(month)} ${year}`,
+      filterNote: useFiltered ? filterNoteText() : '',
+      columns: meta.columns,
+      bodyHtml: meta.buildRows(rows),
+      footerHtml: meta.buildFooter(rows),
+      generatedAt: new Date().toLocaleString('ru-RU')
+    })
+    await window.electronAPI?.exportPDF({
+      html,
+      filename: `reestr_${meta.key}_${month}_${year}.pdf`,
+      title: 'Сохранить реестр выплат',
+      landscape: true
+    })
+  }
+
+  function handleExportClick() {
+    if (filterFormat || filterStatus) setShowFilterChoice(true)
+    else exportRegistryPdf(false)
+  }
 
   function SortTh({ label, field, sort, onToggle, style }) {
     const active = sort.field === field
@@ -369,17 +527,44 @@ export default function Payments() {
       )}
 
       {/* Tabs */}
-      <div className="tabs">
-        <button className={`tab-btn ${tab === 'advance' ? 'active' : ''}`} onClick={() => setTab('advance')}>
-          Авансы ({payrollsWithAdvance.filter(p => p.advanceStatus !== 'paid').length} не выплачено)
-        </button>
-        <button className={`tab-btn ${tab === 'salary' ? 'active' : ''}`} onClick={() => setTab('salary')}>
-          Зарплата ({payrolls.filter(p => p.salaryStatus !== 'paid').length} не выплачено)
-        </button>
-        <button className={`tab-btn ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>
-          Сводная таблица
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="tabs">
+          <button className={`tab-btn ${tab === 'advance' ? 'active' : ''}`} onClick={() => setTab('advance')}>
+            Авансы ({payrollsWithAdvance.filter(p => p.advanceStatus !== 'paid').length} не выплачено)
+          </button>
+          <button className={`tab-btn ${tab === 'salary' ? 'active' : ''}`} onClick={() => setTab('salary')}>
+            Зарплата ({payrolls.filter(p => p.salaryStatus !== 'paid').length} не выплачено)
+          </button>
+          <button className={`tab-btn ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>
+            Сводная таблица
+          </button>
+        </div>
+        {payrolls.length > 0 && (
+          <button className="btn btn-secondary btn-sm" onClick={handleExportClick}>
+            <Printer size={13} /> Реестр PDF
+          </button>
+        )}
       </div>
+
+      {showFilterChoice && (
+        <div className="modal-overlay" onClick={() => setShowFilterChoice(false)}>
+          <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ fontWeight: 700, fontSize: 15 }}>Напечатать реестр</div>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 0 }}>
+                Применён отбор ({filterNoteText()}). Печатать с учётом отбора или весь реестр целиком?
+              </p>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn btn-secondary" onClick={() => setShowFilterChoice(false)}>Отмена</button>
+              <button className="btn btn-secondary" onClick={() => exportRegistryPdf(false)}>Без фильтра</button>
+              <button className="btn btn-primary" onClick={() => exportRegistryPdf(true)}>С фильтром</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {payrolls.length === 0 ? (
         <div className="empty-state">
