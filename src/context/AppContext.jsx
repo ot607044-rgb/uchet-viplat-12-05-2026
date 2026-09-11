@@ -232,6 +232,7 @@ function reducer(state, action) {
             unofficialAdvance: 0,
             officialSalaryPart: 0,
             salaryOnAccount: 0,
+            sickPay: 0,
             fine: 0,
             otherDeductions: 0,
             advanceStatus: 'unpaid',

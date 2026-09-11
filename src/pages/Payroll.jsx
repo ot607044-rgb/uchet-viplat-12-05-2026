@@ -154,12 +154,13 @@ export default function Payroll() {
     unofficialAdvance: acc.unofficialAdvance + (p.unofficialAdvance || 0),
     officialSalaryPart: acc.officialSalaryPart + (p.officialSalaryPart || 0),
     salaryOnAccount: acc.salaryOnAccount + (p.salaryOnAccount || 0),
+    sickPay: acc.sickPay + (p.sickPay || 0),
     fine: acc.fine + (p.fine || 0),
     otherDeductions: acc.otherDeductions + (p.otherDeductions || 0),
     totalEarned: acc.totalEarned + (p.totalEarned || 0),
     totalDeducted: acc.totalDeducted + (p.totalDeducted || 0),
     remaining: acc.remaining + (p.salaryStatus === 'paid' ? 0 : (p.remaining || 0)),
-  }), { salaryAmount: 0, bonus: 0, additionalEarnings: 0, vacationPay: 0, totalAdvance: 0, officialAdvance: 0, unofficialAdvance: 0, officialSalaryPart: 0, salaryOnAccount: 0, fine: 0, otherDeductions: 0, totalEarned: 0, totalDeducted: 0, remaining: 0 }), [filteredRows])
+  }), { salaryAmount: 0, bonus: 0, additionalEarnings: 0, vacationPay: 0, totalAdvance: 0, officialAdvance: 0, unofficialAdvance: 0, officialSalaryPart: 0, salaryOnAccount: 0, sickPay: 0, fine: 0, otherDeductions: 0, totalEarned: 0, totalDeducted: 0, remaining: 0 }), [filteredRows])
 
   function updateField(id, field, value) {
     dispatch({ type: 'UPDATE_PAYROLL_FIELD', payload: { id, field, value } })
@@ -215,6 +216,7 @@ export default function Payroll() {
       totalAdvance: 0,
       officialAdvance: 0, unofficialAdvance: 0,
       officialSalaryPart: 0, salaryOnAccount: 0,
+      sickPay: 0,
       fine: 0, otherDeductions: 0,
       totalEarned: emp.salary || 0,
       totalDeducted: 0,
@@ -448,6 +450,7 @@ export default function Payroll() {
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 90, color: '#6b7280' }}>Второй аванс</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 95, color: '#0891b2', background: '#ecfeff' }}>Оф. часть ЗП</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 90, color: '#059669' }}>В счёт з/п</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 90, color: '#dc2626', background: '#fff5f5' }}>Больничные</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 80, color: '#dc2626' }}>Штраф</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 90, color: '#dc2626' }}>Проч. удерж.</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 110, background: '#f0fdf4', fontWeight: 800 }}>Итого начислено</th>
@@ -590,6 +593,7 @@ export default function Payroll() {
                       <td>
                         <EditCell value={p.salaryOnAccount} onChange={v => updateField(p.id, 'salaryOnAccount', v)} />
                       </td>
+                      <td style={{ background: '#fff5f5' }}><EditCell value={p.sickPay} onChange={v => updateField(p.id, 'sickPay', v)} /></td>
                       <td style={{ background: '#fff5f5' }}><EditCell value={p.fine} onChange={v => updateField(p.id, 'fine', v)} /></td>
                       <td style={{ background: '#fff5f5' }}><EditCell value={p.otherDeductions} onChange={v => updateField(p.id, 'otherDeductions', v)} /></td>
 
@@ -649,6 +653,7 @@ export default function Payroll() {
                   <td className="money" style={{ color: 'var(--text-muted)' }}>{totals.unofficialAdvance > 0 ? totals.unofficialAdvance.toLocaleString('ru-RU') : '—'}</td>
                   <td className="money" style={{ color: '#0891b2', background: '#ecfeff' }}>{totals.officialSalaryPart > 0 ? totals.officialSalaryPart.toLocaleString('ru-RU') : '—'}</td>
                   <td className="money">{totals.salaryOnAccount > 0 ? totals.salaryOnAccount.toLocaleString('ru-RU') : '—'}</td>
+                  <td className="money" style={{ color: 'var(--danger)' }}>{totals.sickPay > 0 ? totals.sickPay.toLocaleString('ru-RU') : '—'}</td>
                   <td className="money" style={{ color: 'var(--danger)' }}>{totals.fine > 0 ? totals.fine.toLocaleString('ru-RU') : '—'}</td>
                   <td className="money" style={{ color: 'var(--danger)' }}>{totals.otherDeductions > 0 ? totals.otherDeductions.toLocaleString('ru-RU') : '—'}</td>
                   <td className="money" style={{ color: 'var(--success)', fontWeight: 800, background: '#f0fdf4' }}>
