@@ -102,6 +102,7 @@ export default function Payroll() {
   const [filterDept, setFilterDept] = useState('')
   const [filterManager, setFilterManager] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [nameSort, setNameSort] = useState('none') // 'none' | 'asc' | 'desc'
   // PDF registry
   const [registry, setRegistry] = useState(null) // { filename, rows: [{name, amount, matchedId, selected}], payType }
   const [registryLoading, setRegistryLoading] = useState(false)
@@ -139,6 +140,16 @@ export default function Payroll() {
         return matchSearch && matchDept && matchManager && matchStatus
       })
   }, [payrollRows, state.employees, search, filterDept, filterManager, filterStatus])
+
+  const sortedRows = useMemo(() => {
+    if (nameSort === 'none') return filteredRows
+    const mul = nameSort === 'asc' ? 1 : -1
+    return [...filteredRows].sort((a, b) => mul * a.empName.localeCompare(b.empName, 'ru'))
+  }, [filteredRows, nameSort])
+
+  function toggleNameSort() {
+    setNameSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none')
+  }
 
   const depts = useMemo(() => [...new Set(payrollRows.map(p => p.department).filter(Boolean))], [payrollRows])
   const managers = useMemo(() => [...new Set(payrollRows.map(p => p.manager).filter(Boolean))], [payrollRows])
@@ -436,7 +447,9 @@ export default function Payroll() {
             <table className="table" style={{ minWidth: 1600, fontSize: 12 }}>
               <thead>
                 <tr>
-                  <th style={{ position: 'sticky', left: 0, top: 0, background: '#f8f9fb', zIndex: 3, minWidth: 160 }}>ФИО</th>
+                  <th onClick={toggleNameSort} style={{ position: 'sticky', left: 0, top: 0, background: '#f8f9fb', zIndex: 3, minWidth: 160, cursor: 'pointer', userSelect: 'none' }}>
+                    ФИО {nameSort === 'asc' ? '▲' : nameSort === 'desc' ? '▼' : <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>⇅</span>}
+                  </th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 90 }}>Отдел</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 100 }}>Должность</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 100 }}>Руководитель</th>
@@ -482,7 +495,7 @@ export default function Payroll() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map(p => {
+                {sortedRows.map(p => {
                   const emp = state.employees.find(e => e.id === p.employeeId)
                   return (
                     <tr key={p.id}>
