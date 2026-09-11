@@ -102,6 +102,7 @@ export default function Payroll() {
   const [filterDept, setFilterDept] = useState('')
   const [filterManager, setFilterManager] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [nameSort, setNameSort] = useState('none') // 'none' | 'asc' | 'desc'
   // PDF registry
   const [registry, setRegistry] = useState(null) // { filename, rows: [{name, amount, matchedId, selected}], payType }
   const [registryLoading, setRegistryLoading] = useState(false)
@@ -140,6 +141,16 @@ export default function Payroll() {
       })
   }, [payrollRows, state.employees, search, filterDept, filterManager, filterStatus])
 
+  const sortedRows = useMemo(() => {
+    if (nameSort === 'none') return filteredRows
+    const mul = nameSort === 'asc' ? 1 : -1
+    return [...filteredRows].sort((a, b) => mul * a.empName.localeCompare(b.empName, 'ru'))
+  }, [filteredRows, nameSort])
+
+  function toggleNameSort() {
+    setNameSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none')
+  }
+
   const depts = useMemo(() => [...new Set(payrollRows.map(p => p.department).filter(Boolean))], [payrollRows])
   const managers = useMemo(() => [...new Set(payrollRows.map(p => p.manager).filter(Boolean))], [payrollRows])
 
@@ -154,12 +165,13 @@ export default function Payroll() {
     unofficialAdvance: acc.unofficialAdvance + (p.unofficialAdvance || 0),
     officialSalaryPart: acc.officialSalaryPart + (p.officialSalaryPart || 0),
     salaryOnAccount: acc.salaryOnAccount + (p.salaryOnAccount || 0),
+    sickPay: acc.sickPay + (p.sickPay || 0),
     fine: acc.fine + (p.fine || 0),
     otherDeductions: acc.otherDeductions + (p.otherDeductions || 0),
     totalEarned: acc.totalEarned + (p.totalEarned || 0),
     totalDeducted: acc.totalDeducted + (p.totalDeducted || 0),
     remaining: acc.remaining + (p.salaryStatus === 'paid' ? 0 : (p.remaining || 0)),
-  }), { salaryAmount: 0, bonus: 0, additionalEarnings: 0, vacationPay: 0, totalAdvance: 0, officialAdvance: 0, unofficialAdvance: 0, officialSalaryPart: 0, salaryOnAccount: 0, fine: 0, otherDeductions: 0, totalEarned: 0, totalDeducted: 0, remaining: 0 }), [filteredRows])
+  }), { salaryAmount: 0, bonus: 0, additionalEarnings: 0, vacationPay: 0, totalAdvance: 0, officialAdvance: 0, unofficialAdvance: 0, officialSalaryPart: 0, salaryOnAccount: 0, sickPay: 0, fine: 0, otherDeductions: 0, totalEarned: 0, totalDeducted: 0, remaining: 0 }), [filteredRows])
 
   function updateField(id, field, value) {
     dispatch({ type: 'UPDATE_PAYROLL_FIELD', payload: { id, field, value } })
@@ -190,12 +202,15 @@ export default function Payroll() {
 
   const missingEmployees = useMemo(() => {
     const existingIds = new Set(payrollRows.map(p => p.employeeId))
-    return activeEmployees.filter(e => {
+    const firstDayOfMonth = new Date(year, month - 1, 1)
+    return state.employees.filter(e => {
       if (existingIds.has(e.id)) return false
       if (e.hireDate && new Date(e.hireDate) > new Date(year, month, 0)) return false
+      // Уволенный до начала месяца (или без указанной даты увольнения) — не включаем
+      if (e.status === 'dismissed' && (!e.dismissDate || new Date(e.dismissDate) < firstDayOfMonth)) return false
       return true
     })
-  }, [activeEmployees, payrollRows, year, month])
+  }, [state.employees, payrollRows, year, month])
 
   function addOneEmployee(emp) {
     const newP = {
@@ -212,6 +227,7 @@ export default function Payroll() {
       totalAdvance: 0,
       officialAdvance: 0, unofficialAdvance: 0,
       officialSalaryPart: 0, salaryOnAccount: 0,
+      sickPay: 0,
       fine: 0, otherDeductions: 0,
       totalEarned: emp.salary || 0,
       totalDeducted: 0,
@@ -279,7 +295,7 @@ export default function Payroll() {
 
   function applyRegistry() {
     if (!registry) return
-    const field = registry.payType // 'officialSalaryPart' | 'vacationPay' | 'officialAdvance'
+    const field = registry.payType // 'officialSalaryPart' | 'vacationPay' | 'officialAdvance' | 'sickPay'
     registry.rows.forEach(r => {
       if (r.selected && r.matchedId) {
         dispatch({ type: 'UPDATE_PAYROLL_FIELD', payload: { id: r.matchedId, field, value: r.amount } })
@@ -431,7 +447,9 @@ export default function Payroll() {
             <table className="table" style={{ minWidth: 1600, fontSize: 12 }}>
               <thead>
                 <tr>
-                  <th style={{ position: 'sticky', left: 0, top: 0, background: '#f8f9fb', zIndex: 3, minWidth: 160 }}>ФИО</th>
+                  <th onClick={toggleNameSort} style={{ position: 'sticky', left: 0, top: 0, background: '#f8f9fb', zIndex: 3, minWidth: 160, cursor: 'pointer', userSelect: 'none' }}>
+                    ФИО {nameSort === 'asc' ? '▲' : nameSort === 'desc' ? '▼' : <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>⇅</span>}
+                  </th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 90 }}>Отдел</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 100 }}>Должность</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 100 }}>Руководитель</th>
@@ -445,6 +463,7 @@ export default function Payroll() {
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 90, color: '#6b7280' }}>Второй аванс</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 95, color: '#0891b2', background: '#ecfeff' }}>Оф. часть ЗП</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 90, color: '#059669' }}>В счёт з/п</th>
+                  <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 90, color: '#dc2626', background: '#fff5f5' }}>Больничные</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 80, color: '#dc2626' }}>Штраф</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 90, color: '#dc2626' }}>Проч. удерж.</th>
                   <th style={{ position: 'sticky', top: 0, zIndex: 2, minWidth: 110, background: '#f0fdf4', fontWeight: 800 }}>Итого начислено</th>
@@ -476,7 +495,7 @@ export default function Payroll() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map(p => {
+                {sortedRows.map(p => {
                   const emp = state.employees.find(e => e.id === p.employeeId)
                   return (
                     <tr key={p.id}>
@@ -587,6 +606,7 @@ export default function Payroll() {
                       <td>
                         <EditCell value={p.salaryOnAccount} onChange={v => updateField(p.id, 'salaryOnAccount', v)} />
                       </td>
+                      <td style={{ background: '#fff5f5' }}><EditCell value={p.sickPay} onChange={v => updateField(p.id, 'sickPay', v)} /></td>
                       <td style={{ background: '#fff5f5' }}><EditCell value={p.fine} onChange={v => updateField(p.id, 'fine', v)} /></td>
                       <td style={{ background: '#fff5f5' }}><EditCell value={p.otherDeductions} onChange={v => updateField(p.id, 'otherDeductions', v)} /></td>
 
@@ -646,6 +666,7 @@ export default function Payroll() {
                   <td className="money" style={{ color: 'var(--text-muted)' }}>{totals.unofficialAdvance > 0 ? totals.unofficialAdvance.toLocaleString('ru-RU') : '—'}</td>
                   <td className="money" style={{ color: '#0891b2', background: '#ecfeff' }}>{totals.officialSalaryPart > 0 ? totals.officialSalaryPart.toLocaleString('ru-RU') : '—'}</td>
                   <td className="money">{totals.salaryOnAccount > 0 ? totals.salaryOnAccount.toLocaleString('ru-RU') : '—'}</td>
+                  <td className="money" style={{ color: 'var(--danger)' }}>{totals.sickPay > 0 ? totals.sickPay.toLocaleString('ru-RU') : '—'}</td>
                   <td className="money" style={{ color: 'var(--danger)' }}>{totals.fine > 0 ? totals.fine.toLocaleString('ru-RU') : '—'}</td>
                   <td className="money" style={{ color: 'var(--danger)' }}>{totals.otherDeductions > 0 ? totals.otherDeductions.toLocaleString('ru-RU') : '—'}</td>
                   <td className="money" style={{ color: 'var(--success)', fontWeight: 800, background: '#f0fdf4' }}>
@@ -691,6 +712,7 @@ export default function Payroll() {
                   { key: 'officialSalaryPart', label: '💼 Офиц. часть зарплаты', color: '#0891b2' },
                   { key: 'vacationPay',         label: '🌴 Отпускные',            color: '#059669' },
                   { key: 'officialAdvance',     label: '📅 Официальный аванс',    color: '#7c3aed' },
+                  { key: 'sickPay',             label: '🤒 Больничные',           color: '#dc2626' },
                 ].map(({ key, label, color }) => (
                   <button key={key} onClick={() => setRegistry(r => ({ ...r, payType: key }))}
                     style={{

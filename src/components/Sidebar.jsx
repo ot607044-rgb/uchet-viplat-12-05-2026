@@ -24,12 +24,23 @@ export default function Sidebar({ activePage, onNavigate }) {
   const { state } = useApp()
   const companyName = state.settings?.companyName || 'Учет выплат'
   const [version, setVersion] = useState('')
+  const [checking, setChecking] = useState(false)
 
   useEffect(() => {
     if (window.electronAPI?.getVersion) {
       window.electronAPI.getVersion().then(v => setVersion(v))
     }
   }, [])
+
+  async function handleCheckUpdates() {
+    if (!window.electronAPI?.checkForUpdates || checking) return
+    setChecking(true)
+    try {
+      await window.electronAPI.checkForUpdates()
+    } finally {
+      setChecking(false)
+    }
+  }
 
   return (
     <aside style={{
@@ -141,7 +152,22 @@ export default function Sidebar({ activePage, onNavigate }) {
         textAlign: 'center'
       }}>
         Данные хранятся локально
-        {version && <div style={{ marginTop: 4 }}>v{version}</div>}
+        {version && (
+          <div
+            onClick={handleCheckUpdates}
+            title="Нажмите для проверки обновлений"
+            style={{
+              marginTop: 4,
+              cursor: checking ? 'default' : 'pointer',
+              color: checking ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.25)',
+              transition: 'color 0.15s'
+            }}
+            onMouseEnter={e => { if (!checking) e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = checking ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.25)' }}
+          >
+            {checking ? 'Проверка...' : `v${version}`}
+          </div>
+        )}
       </div>
     </aside>
   )

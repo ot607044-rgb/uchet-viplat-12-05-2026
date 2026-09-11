@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react'
-import { generateId, calcPayroll, calcUnofficialAdvance } from '../utils/helpers'
+import { generateId, calcPayroll, calcUnofficialAdvance, getCurrentPeriod } from '../utils/helpers'
 
 const AppContext = createContext(null)
 
@@ -95,6 +95,8 @@ function reducer(state, action) {
       return { ...state, employees: [...state.employees, emp] }
     }
     case 'UPDATE_EMPLOYEE': {
+      const prevEmp = state.employees.find(e => e.id === action.payload.id)
+      let updatedEmp = null
       const employees = state.employees.map(e => {
         if (e.id !== action.payload.id) return e
         const updated = { ...e, ...action.payload }
@@ -108,9 +110,29 @@ function reducer(state, action) {
           updated.salaryHistory = [...(e.salaryHistory || []),
             { date: new Date().toISOString().slice(0, 10), from: e.salary, to: action.payload.salary }]
         }
+        updatedEmp = updated
         return updated
       })
-      return { ...state, employees }
+      // Синхронизируем отдел/руководителя в уже созданных начислениях текущего и будущих месяцев,
+      // чтобы отчёты по отделам/руководителям не отставали от карточки сотрудника
+      let payrolls = state.payrolls
+      if (prevEmp && updatedEmp) {
+        const deptChanged = action.payload.department !== undefined && action.payload.department !== prevEmp.department
+        const mgrChanged = action.payload.manager !== undefined && action.payload.manager !== prevEmp.manager
+        if (deptChanged || mgrChanged) {
+          const { month: curMonth, year: curYear } = getCurrentPeriod()
+          payrolls = state.payrolls.map(p => {
+            if (p.employeeId !== action.payload.id) return p
+            if (p.year < curYear || (p.year === curYear && p.month < curMonth)) return p
+            return {
+              ...p,
+              department: deptChanged ? updatedEmp.department : p.department,
+              manager: mgrChanged ? updatedEmp.manager : p.manager
+            }
+          })
+        }
+      }
+      return { ...state, employees, payrolls }
     }
     case 'DELETE_EMPLOYEE': {
       return {
@@ -130,6 +152,24 @@ function reducer(state, action) {
             }
           : e
       )
+      return { ...state, employees }
+    }
+    case 'UPDATE_DISMISS_DATE': {
+      const { id, date } = action.payload
+      const employees = state.employees.map(e => {
+        if (e.id !== id) return e
+        const history = [...(e.employmentHistory || [])]
+        let updated = false
+        for (let i = history.length - 1; i >= 0; i--) {
+          if (history[i].type === 'dismissed') {
+            history[i] = { ...history[i], date }
+            updated = true
+            break
+          }
+        }
+        if (!updated) history.push({ type: 'dismissed', date })
+        return { ...e, dismissDate: date, employmentHistory: history }
+      })
       return { ...state, employees }
     }
     case 'RESTORE_EMPLOYEE': {
@@ -188,12 +228,14 @@ function reducer(state, action) {
       const existingIds = new Set(
         state.payrolls.filter(p => p.month === month && p.year === year).map(p => p.employeeId)
       )
+      const firstDayOfMonth = new Date(year, month - 1, 1)
       const newPayrolls = prevPayrolls
         .filter(p => {
           if (existingIds.has(p.employeeId)) return false
           const emp = state.employees.find(e => e.id === p.employeeId)
           if (!emp) return false
           if (emp.hireDate && new Date(emp.hireDate) > new Date(year, month, 0)) return false
+          if (emp.status === 'dismissed' && emp.dismissDate && new Date(emp.dismissDate) < firstDayOfMonth) return false
           return true
         })
         .map(p => {
@@ -212,6 +254,7 @@ function reducer(state, action) {
             unofficialAdvance: 0,
             officialSalaryPart: 0,
             salaryOnAccount: 0,
+            sickPay: 0,
             fine: 0,
             otherDeductions: 0,
             advanceStatus: 'unpaid',

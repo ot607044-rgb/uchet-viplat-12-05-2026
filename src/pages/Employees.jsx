@@ -223,8 +223,8 @@ function EmployeeEditForm({ empId, onDone }) {
   }))
   const [errors, setErrors] = useState({})
 
-  const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))]
-  const managers = [...new Set(state.employees.map(e => e.manager).filter(Boolean))]
+  const depts = [...new Set([...state.departments.map(d => d.name), ...state.employees.map(e => e.department).filter(Boolean)])]
+  const managers = [...new Set(state.employees.filter(e => e.status !== 'dismissed').map(e => e.fullName).filter(Boolean))]
   const positions = [...new Set(state.employees.map(e => e.position).filter(Boolean))]
   const cooperationFormats = [...BASE_COOPERATION_FORMATS, ...(state.settings?.cooperationFormats || []).filter(v => !BASE_COOPERATION_FORMATS.includes(v))]
   const workSchedules = [...BASE_WORK_SCHEDULES, ...(state.settings?.workSchedules || []).filter(v => !BASE_WORK_SCHEDULES.includes(v))]
@@ -278,10 +278,20 @@ function EmployeeEditForm({ empId, onDone }) {
         </div>
         <div>
           <div className="form-label">Статус</div>
-          <select className="select" value={form.status} onChange={e => set('status', e.target.value)}>
+          <select className="select" value={form.status} onChange={e => {
+            const value = e.target.value
+            setForm(f => ({
+              ...f,
+              status: value,
+              dismissDate: value === 'dismissed' ? (f.dismissDate || new Date().toISOString().slice(0, 10)) : ''
+            }))
+          }}>
             <option value="active">Работает</option>
             <option value="dismissed">Уволен</option>
           </select>
+          {form.status === 'dismissed' && (
+            <input type="date" className="input" style={{ marginTop: 6 }} value={form.dismissDate || ''} onChange={e => set('dismissDate', e.target.value)} />
+          )}
         </div>
       </div>
 
@@ -587,11 +597,13 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
   const [dismissDate, setDismissDate] = useState(new Date().toISOString().slice(0, 10))
   const [showDismissForm, setShowDismissForm] = useState(false)
   const [restoreDate, setRestoreDate] = useState(new Date().toISOString().slice(0, 10))
+  const [editingDismissDate, setEditingDismissDate] = useState(false)
+  const [editDismissDateValue, setEditDismissDateValue] = useState('')
 
   const liveEmp = state.employees.find(e => e.id === employee.id) || employee
 
-  const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))]
-  const managers = [...new Set(state.employees.map(e => e.manager).filter(Boolean))]
+  const depts = [...new Set([...state.departments.map(d => d.name), ...state.employees.map(e => e.department).filter(Boolean)])]
+  const managers = [...new Set(state.employees.filter(e => e.status !== 'dismissed').map(e => e.fullName).filter(Boolean))]
   const positions = [...new Set(state.employees.map(e => e.position).filter(Boolean))]
   const cooperationFormats = [...BASE_COOPERATION_FORMATS, ...(state.settings?.cooperationFormats || []).filter(v => !BASE_COOPERATION_FORMATS.includes(v))]
   const workSchedules = [...BASE_WORK_SCHEDULES, ...(state.settings?.workSchedules || []).filter(v => !BASE_WORK_SCHEDULES.includes(v))]
@@ -602,6 +614,7 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
     hireDate: emp.hireDate || '',
     salary: emp.salary ?? '',
     status: emp.status || 'active',
+    dismissDate: emp.dismissDate || '',
     department: emp.department || '',
     position: emp.position || '',
     manager: emp.manager || '',
@@ -686,10 +699,21 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
                 </div>
                 <div>
                   <div className="form-label">Статус</div>
-                  <select className="select" value={f.status} onChange={e => upd('status', e.target.value)}>
+                  <select className="select" value={f.status} onChange={e => {
+                    const value = e.target.value
+                    setF(prev => ({
+                      ...prev,
+                      status: value,
+                      dismissDate: value === 'dismissed' ? (prev.dismissDate || new Date().toISOString().slice(0, 10)) : ''
+                    }))
+                    setDirty(true)
+                  }}>
                     <option value="active">Работает</option>
                     <option value="dismissed">Уволен</option>
                   </select>
+                  {f.status === 'dismissed' && (
+                    <input type="date" className="input" style={{ marginTop: 6 }} value={f.dismissDate || ''} onChange={e => upd('dismissDate', e.target.value)} />
+                  )}
                 </div>
                 <div>
                   <div className="form-label">Оклад (₽)</div>
@@ -998,10 +1022,43 @@ export function EmployeeModal({ employee, onClose, onEdit, onDismiss, onRestore,
                 <>
                   <div style={{ padding: 16, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca', marginBottom: 20 }}>
                     <div className="form-label" style={{ color: '#dc2626', marginBottom: 6 }}>Сотрудник уволен</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 13, color: '#374151' }}>Дата увольнения:</span>
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{formatDate(liveEmp.dismissDate) || '—'}</span>
-                    </div>
+                    {editingDismissDate ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, color: '#374151' }}>Дата увольнения:</span>
+                        <input
+                          type="date"
+                          className="input"
+                          value={editDismissDateValue}
+                          onChange={e => setEditDismissDateValue(e.target.value)}
+                          style={{ maxWidth: 170 }}
+                        />
+                        <button
+                          className="btn btn-success btn-sm"
+                          disabled={!editDismissDateValue}
+                          onClick={() => {
+                            dispatch({ type: 'UPDATE_DISMISS_DATE', payload: { id: liveEmp.id, date: editDismissDateValue } })
+                            setEditingDismissDate(false)
+                          }}
+                        >
+                          <Save size={13} /> Сохранить
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setEditingDismissDate(false)}>Отмена</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 13, color: '#374151' }}>Дата увольнения:</span>
+                        <span style={{ fontWeight: 600, fontSize: 14 }}>{formatDate(liveEmp.dismissDate) || '—'}</span>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setEditDismissDateValue(liveEmp.dismissDate || new Date().toISOString().slice(0, 10))
+                            setEditingDismissDate(true)
+                          }}
+                        >
+                          <Edit2 size={13} /> Изменить дату увольнения
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
@@ -1079,7 +1136,7 @@ export default function Employees({ onNavigate }) {
     }).sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'ru'))
   }, [state.employees, search, filterDept, filterManager, filterStatus])
 
-  const depts = useMemo(() => [...new Set(state.employees.map(e => e.department).filter(Boolean))], [state.employees])
+  const depts = useMemo(() => [...new Set([...state.departments.map(d => d.name), ...state.employees.map(e => e.department).filter(Boolean)])], [state.departments, state.employees])
   const managers = useMemo(() => [...new Set(state.employees.map(e => e.manager).filter(Boolean))], [state.employees])
 
   function handleDismiss(date) {

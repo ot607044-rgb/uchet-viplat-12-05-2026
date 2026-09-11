@@ -148,19 +148,22 @@ export function getVacationPolicyLabel(emp) {
 
 // ── Payroll calculations ───────────────────────────────────────────────────────
 export function calcPayroll(p) {
-  const totalEarned = (p.salaryAmount || 0) + (p.bonus || 0) + (p.additionalEarnings || 0)
+  const grossEarned = (p.salaryAmount || 0) + (p.bonus || 0) + (p.additionalEarnings || 0)
+  // Больничные — расход, уменьшающий итого начисленное
+  const totalEarned = grossEarned - (p.sickPay || 0)
 
   // Итоговый аванс (без задвоения official+unofficial)
   const advanceSum = p.totalAdvance != null
     ? (p.totalAdvance || 0)
     : (p.officialAdvance || 0) + (p.unofficialAdvance || 0)
 
-  // Итого выдано = отпускные + аванс + оф.часть ЗП + деньги в счёт з/п
+  // Итого выдано = отпускные + больничные + аванс + оф.часть ЗП + деньги в счёт з/п
   const totalDeducted = (p.vacationPay || 0)
+    + (p.sickPay || 0)
     + advanceSum
     + (p.officialSalaryPart || 0)
     + (p.salaryOnAccount || 0)
-  const remaining = totalEarned - totalDeducted - (p.fine || 0) - (p.otherDeductions || 0)
+  const remaining = grossEarned - totalDeducted - (p.fine || 0) - (p.otherDeductions || 0)
   return { totalEarned, totalDeducted, remaining }
 }
 

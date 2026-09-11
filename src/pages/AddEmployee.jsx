@@ -125,7 +125,7 @@ export default function AddEmployee({ editEmployee, onNavigate }) {
     }
   }, [editEmployee])
 
-  const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))]
+  const depts = [...new Set([...state.departments.map(d => d.name), ...state.employees.map(e => e.department).filter(Boolean)])]
   const managers = [...new Set(state.employees.map(e => e.manager).filter(Boolean))]
   const positions = [...new Set(state.employees.map(e => e.position).filter(Boolean))]
 
